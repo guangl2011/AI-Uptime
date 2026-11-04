@@ -8,7 +8,8 @@ on:
 
 jobs:
   backend:
-    name: Backend (ruff, mypy, pytest)
+    # Job ids double as check names; the protect-main ruleset requires the
+    # contexts "backend" and "frontend", so no display `name:` overrides here.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +32,6 @@ jobs:
         run: pytest -q
 
   frontend:
-    name: Frontend (lint, build)
     runs-on: ubuntu-latest
     defaults:
       run:
