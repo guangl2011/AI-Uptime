@@ -45,6 +45,22 @@ The authoritative testing plan lives in the project artifact
 [`docs/testing-plan.md`](docs/testing-plan.md) placeholder tracks what is
 actually implemented; the two are reconciled as phases land.
 
+## Development setup
+
+```bash
+# Backend — http://localhost:8000, docs at /docs
+pip install -e '.[dev]'
+uvicorn uptime_api.app:app --reload
+
+# Frontend — http://localhost:5173, proxies /healthz and /facilities
+# to :8000 with no CORS changes
+npm --prefix frontend install
+npm --prefix frontend run dev
+
+# Hooks (ruff, hygiene, gitleaks secret scanning)
+pre-commit install
+```
+
 ## Governance posture (binding on every phase)
 
 - Zero autonomous control — no write path to facility systems, ever.
