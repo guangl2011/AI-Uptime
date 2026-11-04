@@ -17,6 +17,9 @@ htmlcov/
 *.db
 *.sqlite3
 
+# Evaluation harness output (reports upload as workflow artifacts instead)
+eval-results/
+
 # Node / frontend
 node_modules/
 frontend/dist/

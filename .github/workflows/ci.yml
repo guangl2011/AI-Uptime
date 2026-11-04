@@ -23,13 +23,25 @@ jobs:
         run: pip install -e '.[dev]'
 
       - name: Ruff
-        run: ruff check src tests seed
+        run: ruff check src tests seed evals
 
       - name: Mypy
-        run: mypy src
+        run: mypy src evals
 
       - name: Pytest
         run: pytest -q
+
+      # Eval gates run on every PR so ranking/exposure regressions surface
+      # at review time; the report is uploaded even on gate failure.
+      - name: Eval harness
+        run: python -m evals --output-dir eval-results
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: eval-results/
 
   frontend:
     runs-on: ubuntu-latest

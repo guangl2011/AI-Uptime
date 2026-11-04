@@ -28,7 +28,7 @@ include = ["uptime_api*"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests", "seed"]
+src = ["src", "tests", "seed", "evals"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
