@@ -1,7 +1,8 @@
 """Enumerations for the versioned facility graph (WP1 core).
 
-Cold chain is the beachhead market, so asset types lean refrigeration; the
-power-chain types (UPS/ATS/generator) are shared with the AIDC expansion.
+Asset types follow the locked market sequence: cold chain (the beachhead),
+then the AIDC power chain plus its cooling-distribution units, then hospital
+branch equipment. Power-chain types are shared across all three segments.
 """
 
 from __future__ import annotations
@@ -25,18 +26,50 @@ class NodeType(enum.StrEnum):
 
 
 class AssetType(enum.StrEnum):
-    """Equipment taxonomy. Cold-chain types first, then the shared power chain."""
+    """Equipment taxonomy: cold-chain types, the AIDC cooling train, hospital
+    branch equipment, and the shared electrical power chain."""
 
+    # Cold chain (beachhead).
     COLD_ROOM = "cold_room"
     REFRIGERATION_RACK = "refrigeration_rack"
     COMPRESSOR = "compressor"
     CONDENSER = "condenser"
     EVAPORATOR = "evaporator"
+    # AIDC — electrical chain plus the chilled-water cooling train.
     UTILITY_FEED = "utility_feed"
     GENERATOR = "generator"
     ATS = "ats"
     UPS = "ups"
     PDU = "pdu"
+    IT_RACK = "it_rack"
+    CHILLER = "chiller"
+    CDU = "cdu"
+    PUMP = "pump"
+    CRAH = "crah"
+    # Hospitals — branch panels, medical gas, clinical air handling.
+    DISTRIBUTION_PANEL = "distribution_panel"
+    AIR_HANDLER = "air_handler"
+    MED_GAS_MANIFOLD = "med_gas_manifold"
+    MEDICAL_IMAGING = "medical_imaging"
+
+
+class LoadClass(enum.StrEnum):
+    """Branch role of an asset (hospital life-safety isolation, Phase 4).
+
+    Set as an asset attribute (``load_class``): ``life_safety`` equipment
+    sits on the emergency/red-line branch, ``general`` on the normal branch.
+    Shared upstream equipment (utility, generator, ATS) is deliberately
+    unclassified — isolation is asserted at the branch level, not the source.
+    """
+
+    GENERAL = "general"
+    LIFE_SAFETY = "life_safety"
+
+
+# Attribute keys for the class-aware semantics above. Free-form node
+# attributes are the transport; these constants are the single spelling.
+ATTRIBUTE_LOAD_CLASS = "load_class"
+ATTRIBUTE_LIFE_SAFETY = "life_safety"
 
 
 class RedundancyConfig(enum.StrEnum):

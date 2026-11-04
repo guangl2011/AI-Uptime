@@ -21,10 +21,20 @@ by-construction labels:
 - no-leakage — every replay fold checked against both split invariants;
 - scenarios — the named fault-injection known-answer gates.
 
-Gates are threshold checks evaluated in ``evaluate_gates``; the runner
-(``python -m evals``) fails nonzero if any gate fails, and every number in
-the report is labeled synthetic — the corpus proves the machinery, not
-field performance.
+Phase 4 adds two things. First, **per-market-segment reporting**: every
+metric is computed per segment (cold chain / AIDC / hospitals) as well as
+overall, and the same thresholds gate each segment, so a regression in one
+segment is visible and blocking instead of averaged away. Second, a
+**forecasting pass**: with the WP2 ``ForecastModel`` temporarily installed
+on the app (the flag exists to be evaluated), a second pinned assessment
+per facility is scored against the same by-construction labels. Those
+forecast metrics are reported, never gated — probability-bearing outputs
+stay reported-not-gated until labeled data exists (locked testing plan).
+
+Gates are threshold checks evaluated in ``evaluate_gates`` (overall) and
+``evaluate_segment_gates`` (per segment); the runner (``python -m evals``)
+fails nonzero if any fails, and every number in the report is labeled
+synthetic — the corpus proves the machinery, not field performance.
 """
 
 from __future__ import annotations
@@ -33,10 +43,12 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import cast
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from evals.corpus import FacilityCorpus, generate_corpus
+from evals.corpus import SEGMENTS, Corpus, FacilityCorpus, generate_corpus
 from evals.metrics import (
     ReliabilityBin,
     auc,
@@ -49,6 +61,7 @@ from evals.metrics import (
 )
 from evals.scenarios import ScenarioOutcome, run_all_scenarios
 from evals.splits import LeakageCheck, build_folds, check_no_leakage
+from uptime_api.forecasting import FlatPriorForecastModel
 
 # Gate thresholds. AUROC >= 0.80 is the proposal's go/no-go target applied
 # to labeled synthetic faults; the rest are the harness's own regression
@@ -72,7 +85,9 @@ class HarnessConfig:
     """Harness parameters (defaults = the canonical deterministic corpus)."""
 
     seed: int = 20261104
-    n_facilities: int = 40
+    # Per-segment facility counts (None = canonical: 40 cold chain,
+    # 20 AIDC, 20 hospitals). ``--facilities`` applies one count to all.
+    facility_counts: dict[str, int] | None = None
     bootstrap_samples: int = BOOTSTRAP_SAMPLES
 
 
@@ -162,6 +177,43 @@ class CalibrationReport:
 
 
 @dataclass(frozen=True)
+class MetricBundle:
+    """The six scored sections, computed over one set of labeled cases."""
+
+    topology: TopologyRecovery
+    exposure: ExposureCorrectness
+    spof: SpofQuality
+    ranking: RankingQuality
+    classification: ClassificationMetrics
+    calibration: CalibrationReport
+
+
+@dataclass(frozen=True)
+class SegmentMetrics:
+    """One market segment's scored results (Phase 4 per-segment reporting)."""
+
+    segment: str
+    facilities: int
+    fault_cases: int
+    metrics: MetricBundle
+
+
+@dataclass(frozen=True)
+class ForecastEval:
+    """Scored WP2 forecasting pass (reported, never gated).
+
+    The flat-prior ``ForecastModel`` runs behind the feature flag over the
+    same facilities and labels as the assessor pass; its AUROC/Brier here
+    characterize the baseline estimator, they gate nothing.
+    """
+
+    model: str
+    cases: int
+    overall: ClassificationMetrics
+    per_segment: dict[str, ClassificationMetrics]
+
+
+@dataclass(frozen=True)
 class HarnessResults:
     """Everything the report renders, in one bundle."""
 
@@ -177,6 +229,8 @@ class HarnessResults:
     calibration: CalibrationReport
     leakage: LeakageCheck
     scenarios: tuple[ScenarioOutcome, ...]
+    per_segment: dict[str, SegmentMetrics] = field(default_factory=dict)
+    forecast_eval: ForecastEval | None = None
 
 
 @dataclass
@@ -201,6 +255,32 @@ class _ScoreCollector:
     taus: list[float] = field(default_factory=list)
 
 
+def _merge_collectors(collectors: Sequence[_ScoreCollector]) -> _ScoreCollector:
+    """Pool per-segment collectors into the overall collector (pure)."""
+    merged = _ScoreCollector()
+    for collector in collectors:
+        merged.labels.extend(collector.labels)
+        merged.probabilities.extend(collector.probabilities)
+        merged.expected_nodes += collector.expected_nodes
+        merged.recovered_nodes += collector.recovered_nodes
+        merged.missing.extend(collector.missing)
+        merged.extra.extend(collector.extra)
+        merged.attribute_mismatches.extend(collector.attribute_mismatches)
+        merged.unresolved_rows += collector.unresolved_rows
+        for reason, count in collector.unresolved_reasons.items():
+            merged.unresolved_reasons[reason] = (
+                merged.unresolved_reasons.get(reason, 0) + count
+            )
+        merged.exposure_cases += collector.exposure_cases
+        merged.exposure_correct += collector.exposure_correct
+        merged.exposure_mismatches.extend(collector.exposure_mismatches)
+        merged.tp += collector.tp
+        merged.predicted += collector.predicted
+        merged.actual += collector.actual
+        merged.taus.extend(collector.taus)
+    return merged
+
+
 def load_facility(client: TestClient, facility: FacilityCorpus) -> dict[str, object]:
     """Load one corpus facility through the real onboarding surface.
 
@@ -210,7 +290,11 @@ def load_facility(client: TestClient, facility: FacilityCorpus) -> dict[str, obj
     """
     created = client.post(
         "/facilities",
-        json={"id": facility.facility_id, "name": facility.name, "segment": "cold_chain"},
+        json={
+            "id": facility.facility_id,
+            "name": facility.name,
+            "segment": facility.segment,
+        },
     )
     assert created.status_code == 201, created.text
     uploaded = client.post(
@@ -300,61 +384,67 @@ def collect_case_scores(
             collector.actual += 1
             if exposed:
                 collector.tp += 1
-    # Ranking agreement: Spearman between adjudicated impact size and score.
+    # Ranking agreement: Spearman between the adjudicated priority ordering
+    # and the score. Priority is exposure-first (the product surfaces
+    # unprotected damage first), with total reach as the tiebreak:
+    # 1000 * exposed_count + impacted_count. This is construction-derived —
+    # it never reads the assessor's score — so a propagation bug that moves
+    # exposure between services still fails the metric.
     keys = sorted(facility.expected_impacted)
-    expected_order = [float(len(facility.expected_impacted[key])) for key in keys]
+    expected_order = [
+        float(
+            1000 * len(facility.expected_exposed[key])
+            + len(facility.expected_impacted[key])
+        )
+        for key in keys
+    ]
     actual_order = [float(scores[key]) for key in keys]
     collector.taus.append(spearman(expected_order, actual_order))
 
 
-def run_harness(client: TestClient, config: HarnessConfig | None = None) -> HarnessResults:
-    """Run the full evaluation loop and return every section's results."""
-    cfg = config or HarnessConfig()
-    corpus = generate_corpus(cfg.seed, cfg.n_facilities)
-    collector = _ScoreCollector()
-
-    for facility in corpus.facilities:
-        report = load_facility(client, facility)
-        check_topology_recovery(client, facility, collector)
-        collect_case_scores(report, facility, collector)
-
-    rng = random.Random(cfg.seed)
-    auroc_ci = bootstrap_ci(
-        collector.probabilities, collector.labels, auc, rng, cfg.bootstrap_samples
-    )
-    brier_value = brier(collector.probabilities, collector.labels)
-    brier_ci = bootstrap_ci(
-        collector.probabilities,
-        collector.labels,
-        brier,
-        rng,
-        cfg.bootstrap_samples,
-    )
-    baseline = brier_flat_baseline(collector.labels)
+def _classification_metrics(
+    labels: Sequence[int],
+    probabilities: Sequence[float],
+    *,
+    seed: int,
+    bootstrap_samples: int,
+) -> ClassificationMetrics:
+    """AUROC + Brier with bootstrap CIs and the flat-prior baseline delta."""
+    rng = random.Random(seed)
+    auroc_ci = bootstrap_ci(probabilities, labels, auc, rng, bootstrap_samples)
+    brier_value = brier(probabilities, labels)
+    brier_ci = bootstrap_ci(probabilities, labels, brier, rng, bootstrap_samples)
+    baseline = brier_flat_baseline(labels)
     improvement = baseline - brier_value
 
     def _delta(ps: Sequence[float], ys: Sequence[float]) -> float:
         return brier_flat_baseline(ys) - brier(ps, ys)
 
     improvement_ci = bootstrap_ci(
-        collector.probabilities, collector.labels, _delta, rng, cfg.bootstrap_samples
+        probabilities, labels, _delta, rng, bootstrap_samples
+    )
+    return ClassificationMetrics(
+        cases=len(labels),
+        positives=sum(labels),
+        auroc=auc(probabilities, labels),
+        auroc_ci=auroc_ci,
+        brier=brier_value,
+        brier_ci=brier_ci,
+        baseline_brier=baseline,
+        brier_improvement=improvement,
+        brier_improvement_ci=improvement_ci,
     )
 
-    leakage = check_no_leakage(
-        [event for facility in corpus.facilities for event in facility.events],
-        [
-            fold
-            for facility in corpus.facilities
-            for fold in build_folds(facility.replay_cases, FEATURE_WINDOW)
-        ],
-    )
-    scenarios = tuple(run_all_scenarios(client))
 
-    return HarnessResults(
-        config=cfg,
-        facilities=len(corpus.facilities),
-        fault_cases=len(collector.labels),
-        shape_histogram=corpus.shape_histogram,
+def _finalize_bundle(collector: _ScoreCollector, *, seed: int, samples: int) -> MetricBundle:
+    """Scored sections for one collector (overall or single-segment)."""
+    classification = _classification_metrics(
+        collector.labels,
+        collector.probabilities,
+        seed=seed,
+        bootstrap_samples=samples,
+    )
+    return MetricBundle(
         topology=TopologyRecovery(
             expected_nodes=collector.expected_nodes,
             recovered_nodes=collector.recovered_nodes,
@@ -379,23 +469,154 @@ def run_harness(client: TestClient, config: HarnessConfig | None = None) -> Harn
             mean_tau=sum(collector.taus) / len(collector.taus) if collector.taus else 0.0,
             per_facility=tuple(collector.taus),
         ),
-        classification=ClassificationMetrics(
-            cases=len(collector.labels),
-            positives=sum(collector.labels),
-            auroc=auc(collector.probabilities, collector.labels),
-            auroc_ci=auroc_ci,
-            brier=brier_value,
-            brier_ci=brier_ci,
-            baseline_brier=baseline,
-            brier_improvement=improvement,
-            brier_improvement_ci=improvement_ci,
-        ),
+        classification=classification,
         calibration=CalibrationReport(
             bins=tuple(reliability_bins(collector.probabilities, collector.labels)),
             ece=expected_calibration_error(collector.probabilities, collector.labels),
         ),
+    )
+
+
+def run_forecast_pass(
+    client: TestClient,
+    corpus: Corpus,
+    versions: dict[str, int],
+    *,
+    seed: int,
+    bootstrap_samples: int,
+) -> ForecastEval | None:
+    """Evaluate the flagged forecasting module against the same labels.
+
+    Installs the flat-prior ``ForecastModel`` on the app for the pass and
+    restores whatever was there before. Each facility gets one additional
+    assessment pinned to its confirmed version; every asset's ``p_fault``
+    is scored against the by-construction single-fault label. Reported,
+    never gated.
+    """
+    # Fail fast (before mutating app state) if the corpus and app disagree.
+    facilities = list(corpus.facilities)
+    # httpx types TestClient.app as the raw ASGI callable; it is the FastAPI
+    # instance, and the forecaster slot is where the flag resolution landed.
+    app = cast(FastAPI, client.app)
+    previous = app.state.forecaster
+    app.state.forecaster = FlatPriorForecastModel()
+    try:
+        segment_scores: dict[str, tuple[list[int], list[float]]] = {
+            segment: ([], []) for segment in SEGMENTS
+        }
+        for facility in facilities:
+            run = client.post(
+                f"/facilities/{facility.facility_id}/assessments",
+                json={
+                    "author": "eval_forecast_pass",
+                    "version_no": versions[facility.facility_id],
+                },
+            )
+            assert run.status_code == 201, run.text
+            report = run.json()
+            p_faults = {
+                str(item["asset_key"]): float(item["p_fault"])
+                for item in report["forecasts"]
+            }
+            labels, probabilities = segment_scores[facility.segment]
+            for key, expected in facility.expected_exposed.items():
+                assert key in p_faults, f"{facility.facility_id}:{key} has no forecast"
+                labels.append(1 if expected else 0)
+                probabilities.append(p_faults[key])
+    finally:
+        app.state.forecaster = previous
+
+    overall_labels: list[int] = []
+    overall_probabilities: list[float] = []
+    per_segment: dict[str, ClassificationMetrics] = {}
+    for segment, (labels, probabilities) in segment_scores.items():
+        overall_labels.extend(labels)
+        overall_probabilities.extend(probabilities)
+        per_segment[segment] = _classification_metrics(
+            labels,
+            probabilities,
+            seed=seed,
+            bootstrap_samples=bootstrap_samples,
+        )
+    overall = _classification_metrics(
+        overall_labels,
+        overall_probabilities,
+        seed=seed,
+        bootstrap_samples=bootstrap_samples,
+    )
+    return ForecastEval(
+        model=FlatPriorForecastModel.__name__,
+        cases=len(overall_labels),
+        overall=overall,
+        per_segment=per_segment,
+    )
+
+
+def run_harness(client: TestClient, config: HarnessConfig | None = None) -> HarnessResults:
+    """Run the full evaluation loop and return every section's results."""
+    cfg = config or HarnessConfig()
+    corpus = generate_corpus(cfg.seed, cfg.facility_counts)
+
+    # One collector per segment; the overall collector is their merge.
+    segment_collectors = {segment: _ScoreCollector() for segment in SEGMENTS}
+    versions: dict[str, int] = {}
+    for facility in corpus.facilities:
+        report = load_facility(client, facility)
+        graph_version = report["graph_version"]
+        assert isinstance(graph_version, int)
+        versions[facility.facility_id] = graph_version
+        collector = segment_collectors[facility.segment]
+        check_topology_recovery(client, facility, collector)
+        collect_case_scores(report, facility, collector)
+
+    overall = _merge_collectors(list(segment_collectors.values()))
+    per_segment = {
+        segment: SegmentMetrics(
+            segment=segment,
+            facilities=len(
+                [f for f in corpus.facilities if f.segment == segment]
+            ),
+            fault_cases=len(collector.labels),
+            metrics=_finalize_bundle(
+                collector, seed=cfg.seed, samples=cfg.bootstrap_samples
+            ),
+        )
+        for segment, collector in segment_collectors.items()
+    }
+    bundle = _finalize_bundle(overall, seed=cfg.seed, samples=cfg.bootstrap_samples)
+
+    leakage = check_no_leakage(
+        [event for facility in corpus.facilities for event in facility.events],
+        [
+            fold
+            for facility in corpus.facilities
+            for fold in build_folds(facility.replay_cases, FEATURE_WINDOW)
+        ],
+    )
+    scenarios = tuple(run_all_scenarios(client))
+    forecast_eval = run_forecast_pass(
+        client,
+        corpus,
+        versions,
+        seed=cfg.seed,
+        bootstrap_samples=cfg.bootstrap_samples,
+    )
+
+    return HarnessResults(
+        config=cfg,
+        facilities=len(corpus.facilities),
+        fault_cases=len(overall.labels),
+        shape_histogram=corpus.shape_histogram,
+        topology=bundle.topology,
+        exposure=bundle.exposure,
+        spof=bundle.spof,
+        ranking=bundle.ranking,
+        classification=bundle.classification,
+        calibration=bundle.calibration,
         leakage=leakage,
         scenarios=scenarios,
+        per_segment=per_segment,
+        forecast_eval=forecast_eval,
     )
 
 
@@ -409,7 +630,7 @@ class GateResult:
 
 
 def evaluate_gates(results: HarnessResults) -> list[GateResult]:
-    """Every gate, in report order. The runner fails nonzero if any fails."""
+    """Every overall gate, in report order. The runner fails nonzero if any fails."""
     gates = [
         GateResult(
             "topology_recovery",
@@ -477,6 +698,124 @@ def evaluate_gates(results: HarnessResults) -> list[GateResult]:
     return gates
 
 
+def evaluate_segment_gates(results: HarnessResults) -> list[GateResult]:
+    """The same thresholds applied per market segment (Phase 4).
+
+    Names are prefixed ``<segment>:<gate>`` so a regression in one segment
+    is visible and blocking instead of averaged away by the overall pool.
+    """
+    gates: list[GateResult] = []
+    for segment in SEGMENTS:
+        segment_metrics = results.per_segment.get(segment)
+        if segment_metrics is None:
+            continue
+        metrics = segment_metrics.metrics
+        prefix = f"{segment}:"
+        gates.extend(
+            [
+                GateResult(
+                    f"{prefix}topology_recovery",
+                    metrics.topology.recovery_rate >= TOPOLOGY_RECOVERY_GATE
+                    and not metrics.topology.missing
+                    and not metrics.topology.extra
+                    and not metrics.topology.attribute_mismatches,
+                    f"recovery {metrics.topology.recovered_nodes}/"
+                    f"{metrics.topology.expected_nodes}, "
+                    f"{len(metrics.topology.missing)} missing, "
+                    f"{len(metrics.topology.extra)} extra, "
+                    f"{len(metrics.topology.attribute_mismatches)} attribute mismatches",
+                ),
+                GateResult(
+                    f"{prefix}exposure_correctness",
+                    metrics.exposure.accuracy >= EXPOSURE_GATE,
+                    f"{metrics.exposure.correct}/{metrics.exposure.cases} "
+                    "exposure sets exact",
+                ),
+                GateResult(
+                    f"{prefix}spof_detection",
+                    metrics.spof.recall >= SPOF_RECALL_GATE
+                    and metrics.spof.false_positive_rate <= SPOF_FPR_GATE,
+                    f"recall {metrics.spof.recall:.3f}, "
+                    f"FPR {metrics.spof.false_positive_rate:.3f}",
+                ),
+                GateResult(
+                    f"{prefix}ranking_agreement",
+                    metrics.ranking.mean_tau >= RANKING_TAU_GATE,
+                    f"mean Spearman {metrics.ranking.mean_tau:.3f} "
+                    f"(gate {RANKING_TAU_GATE})",
+                ),
+                GateResult(
+                    f"{prefix}auroc",
+                    metrics.classification.auroc >= AUROC_GATE,
+                    f"AUROC {metrics.classification.auroc:.3f} "
+                    f"[{metrics.classification.auroc_ci[0]:.3f}, "
+                    f"{metrics.classification.auroc_ci[1]:.3f}] (gate {AUROC_GATE})",
+                ),
+                GateResult(
+                    f"{prefix}brier",
+                    metrics.classification.brier <= BRIER_GATE,
+                    f"Brier {metrics.classification.brier:.3f} "
+                    f"[{metrics.classification.brier_ci[0]:.3f}, "
+                    f"{metrics.classification.brier_ci[1]:.3f}] vs baseline "
+                    f"{metrics.classification.baseline_brier:.3f}",
+                ),
+            ]
+        )
+    return gates
+
+
+def _classification_payload(metrics: ClassificationMetrics) -> dict[str, object]:
+    return {
+        "cases": metrics.cases,
+        "positives": metrics.positives,
+        "auroc": metrics.auroc,
+        "auroc_ci": list(metrics.auroc_ci),
+        "brier": metrics.brier,
+        "brier_ci": list(metrics.brier_ci),
+        "baseline_brier": metrics.baseline_brier,
+        "brier_improvement": metrics.brier_improvement,
+        "brier_improvement_ci": list(metrics.brier_improvement_ci),
+    }
+
+
+def _segment_payload(segment: SegmentMetrics) -> dict[str, object]:
+    metrics = segment.metrics
+    return {
+        "segment": segment.segment,
+        "facilities": segment.facilities,
+        "fault_cases": segment.fault_cases,
+        "topology_recovery": {
+            "expected_nodes": metrics.topology.expected_nodes,
+            "recovered_nodes": metrics.topology.recovered_nodes,
+            "recovery_rate": metrics.topology.recovery_rate,
+            "missing": list(metrics.topology.missing),
+            "extra": list(metrics.topology.extra),
+            "attribute_mismatches": list(metrics.topology.attribute_mismatches),
+        },
+        "exposure_correctness": {
+            "cases": metrics.exposure.cases,
+            "correct": metrics.exposure.correct,
+            "accuracy": metrics.exposure.accuracy,
+            "mismatches": list(metrics.exposure.mismatches),
+        },
+        "spof_detection": {
+            "true_positives": metrics.spof.true_positives,
+            "predicted_total": metrics.spof.predicted_total,
+            "actual_total": metrics.spof.actual_total,
+            "precision": metrics.spof.precision,
+            "recall": metrics.spof.recall,
+            "false_positive_rate": metrics.spof.false_positive_rate,
+        },
+        "ranking_agreement": {
+            "mean_spearman": metrics.ranking.mean_tau,
+        },
+        "classification": _classification_payload(metrics.classification),
+        "calibration": {
+            "ece": metrics.calibration.ece,
+        },
+    }
+
+
 def render_json(results: HarnessResults) -> dict[str, object]:
     """Machine-readable report payload (workflow artifact / diffing)."""
     return {
@@ -509,17 +848,7 @@ def render_json(results: HarnessResults) -> dict[str, object]:
         "ranking_agreement": {
             "mean_spearman": results.ranking.mean_tau,
         },
-        "classification": {
-            "cases": results.classification.cases,
-            "positives": results.classification.positives,
-            "auroc": results.classification.auroc,
-            "auroc_ci": list(results.classification.auroc_ci),
-            "brier": results.classification.brier,
-            "brier_ci": list(results.classification.brier_ci),
-            "baseline_brier": results.classification.baseline_brier,
-            "brier_improvement": results.classification.brier_improvement,
-            "brier_improvement_ci": list(results.classification.brier_improvement_ci),
-        },
+        "classification": _classification_payload(results.classification),
         "calibration": {
             "ece": results.calibration.ece,
             "bins": [
@@ -532,6 +861,22 @@ def render_json(results: HarnessResults) -> dict[str, object]:
                 }
                 for bucket in results.calibration.bins
             ],
+        },
+        "per_segment": {
+            segment: _segment_payload(segment_metrics)
+            for segment, segment_metrics in results.per_segment.items()
+        },
+        "forecast_eval": None
+        if results.forecast_eval is None
+        else {
+            "model": results.forecast_eval.model,
+            "cases": results.forecast_eval.cases,
+            "reported_not_gated": True,
+            "overall": _classification_payload(results.forecast_eval.overall),
+            "per_segment": {
+                segment: _classification_payload(metrics)
+                for segment, metrics in results.forecast_eval.per_segment.items()
+            },
         },
         "no_leakage": {
             "ok": results.leakage.ok,
@@ -554,12 +899,18 @@ def render_json(results: HarnessResults) -> dict[str, object]:
 
 def render_markdown(results: HarnessResults) -> str:
     """The human-readable report (also the CI artifact's markdown half)."""
-    gates = evaluate_gates(results)
+    gates = evaluate_gates(results) + evaluate_segment_gates(results)
+    segment_counts = {
+        segment: segment_metrics.facilities
+        for segment, segment_metrics in results.per_segment.items()
+    }
     lines = [
         "# AI-Uptime Evaluation Report",
         "",
-        f"- Corpus: {results.facilities} synthetic cold-chain facilities "
-        f"(seed {results.config.seed}), {results.fault_cases} labeled single-fault cases",
+        f"- Corpus: {results.facilities} synthetic facilities across "
+        f"{len(results.per_segment)} market segments (cold chain → AIDC → hospitals; "
+        f"per segment: {segment_counts}; seed {results.config.seed}), "
+        f"{results.fault_cases} labeled single-fault cases",
         f"- Shape histogram: {results.shape_histogram}",
         "",
         "> **All labels in this report are synthetic and by-construction.** The corpus",
@@ -594,11 +945,57 @@ def render_markdown(results: HarnessResults) -> str:
         f"{results.leakage.post_repair_events_excluded} post-repair events excluded |",
         f"| Scenarios | {sum(o.passed for o in results.scenarios)}/{len(results.scenarios)} pass |",
         "",
-        "## Calibration reliability table (synthetic)",
+        "## Per-segment results (market sequence: cold chain → AIDC → hospitals)",
         "",
-        "| Bin | n | Mean predicted | Observed rate |",
-        "|---|---|---|---|",
+        "| Segment | Facilities | Cases | Topology | Exposure | SPOF R/FPR "
+        "| Spearman | AUROC | Brier |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
+    for segment, segment_metrics in results.per_segment.items():
+        metrics = segment_metrics.metrics
+        lines.append(
+            f"| {segment} | {segment_metrics.facilities} | {segment_metrics.fault_cases} "
+            f"| {metrics.topology.recovered_nodes}/{metrics.topology.expected_nodes} "
+            f"| {metrics.exposure.correct}/{metrics.exposure.cases} "
+            f"| {metrics.spof.recall:.3f}/{metrics.spof.false_positive_rate:.3f} "
+            f"| {metrics.ranking.mean_tau:.3f} "
+            f"| {metrics.classification.auroc:.3f} "
+            f"| {metrics.classification.brier:.3f} |"
+        )
+    if results.forecast_eval is not None:
+        forecast = results.forecast_eval
+        lines.extend(
+            [
+                "",
+                "## WP2 forecasting pass (feature-flagged; reported, not gated)",
+                "",
+                f"Model `{forecast.model}` over the same facilities and labels "
+                f"({forecast.cases} cases). Probability-bearing outputs stay "
+                "reported-not-gated until labeled data exists (locked testing plan);",
+                "forecasts are informational estimates — nothing executes on them.",
+                "",
+                "| Segment | AUROC | Brier | Baseline |",
+                "|---|---|---|---|",
+            ]
+        )
+        for segment, forecast_metrics in forecast.per_segment.items():
+            lines.append(
+                f"| {segment} | {forecast_metrics.auroc:.3f} | {forecast_metrics.brier:.3f} "
+                f"| {forecast_metrics.baseline_brier:.3f} |"
+            )
+        lines.append(
+            f"| **overall** | {forecast.overall.auroc:.3f} "
+            f"| {forecast.overall.brier:.3f} | {forecast.overall.baseline_brier:.3f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Calibration reliability table (synthetic)",
+            "",
+            "| Bin | n | Mean predicted | Observed rate |",
+            "|---|---|---|---|",
+        ]
+    )
     for bucket in results.calibration.bins:
         lines.append(
             f"| [{bucket.lower:.1f}, {bucket.upper:.1f}] | {bucket.n} "

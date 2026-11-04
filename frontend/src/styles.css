@@ -217,6 +217,17 @@ code {
   color: var(--accent);
 }
 
+.badge.life_safety_isolation {
+  background: #f3e8fd;
+  color: #6d28d9;
+}
+
+.badge.life_safety {
+  background: #f3e8fd;
+  color: #6d28d9;
+  margin-left: 0.5rem;
+}
+
 .risk-high {
   color: var(--high);
   font-weight: 700;

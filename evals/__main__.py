@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 from evals.harness import (
     HarnessConfig,
     evaluate_gates,
+    evaluate_segment_gates,
     render_json,
     render_markdown,
     run_harness,
@@ -37,7 +38,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--seed", type=int, default=None, help="corpus seed (default: canonical)")
     parser.add_argument(
-        "--facilities", type=int, default=None, help="facility count (default: canonical)"
+        "--facilities",
+        type=int,
+        default=None,
+        help="facility count applied to every segment (default: canonical counts)",
     )
     parser.add_argument(
         "--output-dir",
@@ -49,7 +53,9 @@ def main(argv: list[str] | None = None) -> int:
 
     config = HarnessConfig(
         seed=args.seed if args.seed is not None else HarnessConfig.seed,
-        n_facilities=args.facilities if args.facilities is not None else HarnessConfig.n_facilities,
+        facility_counts=None
+        if args.facilities is None
+        else {segment: args.facilities for segment in ("cold_chain", "aidc", "hospital")},
     )
 
     with tempfile.TemporaryDirectory(prefix="aiuptime-eval-") as tmp:
@@ -65,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     json_payload["generated_at"] = datetime.now(UTC).isoformat()
     json_path.write_text(json.dumps(json_payload, indent=2) + "\n", encoding="utf-8")
 
-    gates = evaluate_gates(results)
+    gates = evaluate_gates(results) + evaluate_segment_gates(results)
     print(f"Eval report: {md_path} (+ {json_path.name})")
     print(f"Corpus: {results.facilities} facilities, {results.fault_cases} labeled fault cases")
     for gate in gates:

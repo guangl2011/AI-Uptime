@@ -24,6 +24,7 @@ export type FindingKind =
   | 'single_point_of_failure'
   | 'missing_redundancy'
   | 'unserved_service'
+  | 'life_safety_isolation'
 
 export interface Facility {
   id: string
@@ -125,6 +126,20 @@ export interface ServiceAssessment {
   single_points_of_failure: SpofEntry[]
   evidence: EvidenceCitation[]
   data_gaps: string[]
+  /** Hospital semantics (Phase 4): the service carries the life-safety attribute. */
+  life_safety: boolean
+}
+
+/** One WP2 risk forecast with uncertainty bounds (feature-flagged; default off).
+ *  Informational only — nothing in the system executes on it. */
+export interface RiskForecast {
+  asset_key: string
+  horizon_days: number
+  p_fault: number
+  lower: number
+  upper: number
+  redundancy_class: string | null
+  basis: string
 }
 
 export interface AssetAssessment {
@@ -155,6 +170,8 @@ export interface AssessmentReport {
   findings: Finding[]
   data_gaps: string[]
   open_questions: string[]
+  /** Present only when the forecasting flag is enabled (default off). */
+  forecasts: RiskForecast[]
 }
 
 export interface AssessmentSummary {

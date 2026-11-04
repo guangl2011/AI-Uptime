@@ -7,10 +7,15 @@ evidence-cited risk assessment with explicit abstention where data is
 insufficient. Nothing in this system writes to facility control systems:
 integrations are read-only, agents propose, humans execute.
 
-> **Phase 1 — core domain landed:** the versioned graph twin (nodes, edges,
-> N/N+1/2N redundancy configs, provenance on every element), read-only
-> equipment-inventory import, and the facility/graph API. The assessor and
-> report layers follow in later phases per the MVP specification.
+> **Phase 4 — market-sequence expansion landed:** the scanner flow (inventory →
+> topology confirm → assessment report) works for **cold chain, AIDC, and
+> hospital** synthetic facilities with no per-facility code changes; the eval
+> harness gates every metric per segment and overall; hospital life-safety
+> isolation is a reportable finding; and WP2 risk-forecasting groundwork sits
+> behind a feature flag (default OFF, informational only, evaluated by the
+> same harness, never executed on). Governance posture unchanged: read-only
+> integrations, zero autonomous control, evidence-cited findings with explicit
+> abstention.
 
 ## Quickstart
 
@@ -52,9 +57,11 @@ docs/             testing plan and project docs
 ## Testing
 
 The authoritative testing plan lives in the project artifact
-**AI Uptime — Testing Plan (art_XaCiEWwo)**. A repo-local
-[`docs/testing-plan.md`](docs/testing-plan.md) placeholder tracks what is
-actually implemented; the two are reconciled as phases land.
+**AI Uptime — Testing Plan (art_XaCiEWwo)**. The repo-local
+[`docs/testing-plan.md`](docs/testing-plan.md) tracks what is actually
+implemented (three-segment corpus, per-segment gates, fault-injection
+scenarios, WP2 forecast pass) and is reconciled with that artifact as
+phases land. Run the full evaluation with `make eval`.
 
 ## Development setup
 

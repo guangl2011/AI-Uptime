@@ -8,6 +8,8 @@ byte-for-byte reproducible no matter how the twin evolves afterwards.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,9 @@ from uptime_api.graph.errors import GraphVersionNotFound
 from uptime_api.graph.models import GraphVersion
 from uptime_api.graph.service import GraphService
 
+if TYPE_CHECKING:
+    from uptime_api.forecasting.interface import ForecastModel
+
 
 class AssessmentService:
     """Transactional gateway to persisted assessments."""
@@ -27,14 +32,18 @@ class AssessmentService:
         self._session = session
 
     def run_assessment(
-        self, facility_id: str, author: str, version_no: int | None = None
+        self,
+        facility_id: str,
+        author: str,
+        version_no: int | None = None,
+        forecaster: ForecastModel | None = None,
     ) -> tuple[Assessment, AssessmentReport]:
         """Assess one pinned graph version and persist the report."""
         graph_service = GraphService(self._session)
         graph_service.get_facility(facility_id)  # 404 semantics for the API layer
         snapshot = graph_service.get_snapshot(facility_id, version_no)
 
-        report = build_report(snapshot)
+        report = build_report(snapshot, forecaster)
         assessment = Assessment(
             facility_id=facility_id,
             graph_version_id=self._version_id(facility_id, snapshot.version_no),

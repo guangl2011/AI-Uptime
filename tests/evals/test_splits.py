@@ -175,7 +175,7 @@ def test_assert_no_leakage_raises_on_violations() -> None:
 def test_corpus_folds_are_leak_free_across_seeds() -> None:
     """The dedicated leakage test: across generated seeds, zero violations."""
     for seed in (CORPUS_SEED, CORPUS_SEED + 1, CORPUS_SEED + 2):
-        corpus = generate_corpus(seed, 10)
+        corpus = generate_corpus(seed, {"cold_chain": 10})
         folds = [
             fold
             for facility in corpus.facilities

@@ -107,6 +107,22 @@ def run_scenario(client: TestClient, scenario: dict[str, Any]) -> ScenarioOutcom
                 f"{expected_tolerated}, got {actual}"
             )
 
+    # Optional finding assertions: a scenario may pin that the assessor
+    # raises a specific finding (e.g. the hospital's life-safety isolation
+    # violation) — kind plus subject, matched against the report's findings.
+    for expected_finding in scenario["expected"].get("findings", []):
+        checks += 1
+        present = any(
+            finding["kind"] == expected_finding["kind"]
+            and finding["subject"] == expected_finding["subject"]
+            for finding in report["findings"]
+        )
+        if not present:
+            failures.append(
+                f"expected finding {expected_finding['kind']} on "
+                f"{expected_finding['subject']} missing from the assessment"
+            )
+
     checks += 1
     if not injected["evidence"]:
         failures.append(f"injected asset {inject_key} carries no evidence citations")

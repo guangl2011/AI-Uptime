@@ -1,0 +1,451 @@
+{
+  "scenario_id": "hospital-life-safety-isolation-mixed-medgas",
+  "title": "Life-safety isolation violation: med-gas on the general panel",
+  "description": "The hospital's duplex med-gas manifolds are wired from the general distribution panel instead of the life-safety branch. A general-panel fault exposes the imaging service but is absorbed for med-gas by the manifold N+1 group \u2014 yet the wiring itself violates life-safety isolation, and the assessor must raise the life_safety_isolation finding on the medical-gas service with the violation path as evidence.",
+  "market": "hospital",
+  "facility_id": "scenario-hospital-isolation",
+  "topology": {
+    "author": "eval_scenarios",
+    "notes": "Scenario topology: hospital-life-safety-isolation-mixed-medgas",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "name": "Utility feed",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "utility_feed",
+        "location": "site entrance"
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "name": "Standby generator",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "generator",
+        "location": "generator yard"
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "name": "Automatic transfer switch",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "ats",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "LS-PANEL",
+        "node_type": "asset",
+        "name": "Life-safety panel",
+        "attributes": {
+          "load_class": "life_safety"
+        },
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "distribution_panel",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "UPS-1",
+        "node_type": "asset",
+        "name": "UPS bank",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "ups",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "name": "PDU",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "pdu",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "GENERAL-PANEL",
+        "node_type": "asset",
+        "name": "General distribution panel",
+        "attributes": {
+          "load_class": "general"
+        },
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "distribution_panel",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "OR-AH-1",
+        "node_type": "asset",
+        "name": "OR air handler 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "air_handler",
+        "location": "OR wing"
+      },
+      {
+        "node_key": "OR-AH-2",
+        "node_type": "asset",
+        "name": "OR air handler 2",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "air_handler",
+        "location": "OR wing"
+      },
+      {
+        "node_key": "MEDGAS-1",
+        "node_type": "asset",
+        "name": "Med-gas manifold 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "med_gas_manifold",
+        "location": "med gas room"
+      },
+      {
+        "node_key": "MEDGAS-2",
+        "node_type": "asset",
+        "name": "Med-gas manifold 2",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "med_gas_manifold",
+        "location": "med gas room"
+      },
+      {
+        "node_key": "IMG-1",
+        "node_type": "asset",
+        "name": "Imaging modality",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "asset_type": "medical_imaging",
+        "location": "imaging suite"
+      },
+      {
+        "node_key": "SVC-LS-POWER",
+        "node_type": "service",
+        "name": "Life-safety branch power",
+        "attributes": {
+          "life_safety": true
+        },
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-OR-AIR",
+        "node_type": "service",
+        "name": "Operating-room ventilation",
+        "attributes": {
+          "life_safety": true
+        },
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-MEDGAS",
+        "node_type": "service",
+        "name": "Medical gas supply",
+        "attributes": {
+          "life_safety": true
+        },
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-IMAGING",
+        "node_type": "service",
+        "name": "Imaging suite power",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "LS-PANEL",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "SVC-LS-POWER",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "OR-AH-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "OR-AH-2",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "OR-AH-1",
+        "to_node": "SVC-OR-AIR",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "or_air_handlers"
+      },
+      {
+        "from_node": "OR-AH-2",
+        "to_node": "SVC-OR-AIR",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "or_air_handlers"
+      },
+      {
+        "from_node": "GENERAL-PANEL",
+        "to_node": "MEDGAS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "GENERAL-PANEL",
+        "to_node": "MEDGAS-2",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "MEDGAS-1",
+        "to_node": "SVC-MEDGAS",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "med_gas_manifolds"
+      },
+      {
+        "from_node": "MEDGAS-2",
+        "to_node": "SVC-MEDGAS",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "med_gas_manifolds"
+      },
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "UPS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "UPS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "GENERAL-PANEL",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "GENERAL-PANEL",
+        "to_node": "IMG-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "IMG-1",
+        "to_node": "SVC-IMAGING",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:hospital-life-safety-isolation-mixed-medgas"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      }
+    ]
+  },
+  "inject": {
+    "asset_key": "GENERAL-PANEL",
+    "kind": "single_fault"
+  },
+  "expected": {
+    "exposed_services": [
+      "SVC-IMAGING"
+    ],
+    "service_first_fault_tolerated": {
+      "SVC-LS-POWER": false,
+      "SVC-OR-AIR": true,
+      "SVC-MEDGAS": true,
+      "SVC-IMAGING": false
+    },
+    "findings": [
+      {
+        "kind": "life_safety_isolation",
+        "subject": "SVC-MEDGAS"
+      }
+    ]
+  },
+  "adjudicated_by": "R4 corpus construction (mixed med-gas feeder is a red-line isolation violation reported as a finding, not absorbed into exposure); reviewer: founder"
+}
