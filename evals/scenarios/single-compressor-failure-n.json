@@ -1,0 +1,242 @@
+{
+  "scenario_id": "single-compressor-failure-n",
+  "title": "Single compressor failure under N",
+  "description": "A lone compressor (no partner in its redundancy group) fails. Nothing absorbs the fault: the rack loses compression capacity and the one cold room it serves is interrupted. The mirror image of the N+1 scenario \u2014 same failure, opposite adjudication, because the group has no spare.",
+  "market": "cold_chain",
+  "facility_id": "scenario-n-compressor",
+  "topology": {
+    "author": "eval_scenarios",
+    "notes": "Scenario topology: single-compressor-failure-n",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "Main PDU",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "refrigeration_rack",
+        "name": "Compressor rack 1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "COMP-1-1",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "COND-1",
+        "node_type": "asset",
+        "asset_type": "condenser",
+        "name": "Condenser 1",
+        "location": "roof",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "CR-0",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 0",
+        "location": "freezer wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-0",
+        "node_type": "service",
+        "name": "Cold Room 0 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "COMP-1-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N",
+        "member_group": "rack_compressors-1"
+      },
+      {
+        "from_node": "COND-1",
+        "to_node": "RACK-1",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-0",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-REFRIG-0",
+        "to_node": "CR-0",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-0",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:single-compressor-failure-n"
+        },
+        "redundancy_config": "N"
+      }
+    ]
+  },
+  "inject": {
+    "asset_key": "COMP-1-1",
+    "kind": "single_fault"
+  },
+  "expected": {
+    "exposed_services": [
+      "SVC-REFRIG-0"
+    ],
+    "service_first_fault_tolerated": {
+      "SVC-POWER": false,
+      "SVC-REFRIG-0": false
+    }
+  },
+  "adjudicated_by": "R4 corpus construction (N group: first fault interrupts); reviewer: founder"
+}

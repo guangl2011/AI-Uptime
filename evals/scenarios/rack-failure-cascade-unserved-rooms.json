@@ -1,0 +1,352 @@
+{
+  "scenario_id": "rack-failure-cascade-unserved-rooms",
+  "title": "Rack failure cascading to unserved cold rooms",
+  "description": "The entire compressor rack fails (loss of the rack as a unit). Both cold rooms it serves lose refrigeration at once: the failure cascades past the service boundary, and both refrigeration services are interrupted with no redundancy to absorb it. This is the cascade case the criticality ranking must put at the top for a single-rack facility.",
+  "market": "cold_chain",
+  "facility_id": "scenario-rack-cascade",
+  "topology": {
+    "author": "eval_scenarios",
+    "notes": "Scenario topology: rack-failure-cascade-unserved-rooms",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "Main PDU",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "refrigeration_rack",
+        "name": "Compressor rack 1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "COMP-1-1",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "COMP-1-2",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-2",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "COND-1",
+        "node_type": "asset",
+        "asset_type": "condenser",
+        "name": "Condenser 1",
+        "location": "roof",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "CR-0",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 0",
+        "location": "freezer wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "CR-1",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 1",
+        "location": "cooler wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-0",
+        "node_type": "service",
+        "name": "Cold Room 0 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-1",
+        "node_type": "service",
+        "name": "Cold Room 1 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "COMP-1-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "rack_compressors-1"
+      },
+      {
+        "from_node": "COMP-1-2",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "rack_compressors-1"
+      },
+      {
+        "from_node": "COND-1",
+        "to_node": "RACK-1",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-0",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-REFRIG-0",
+        "to_node": "CR-0",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-0",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-REFRIG-1",
+        "to_node": "CR-1",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:rack-failure-cascade-unserved-rooms"
+        },
+        "redundancy_config": "N"
+      }
+    ]
+  },
+  "inject": {
+    "asset_key": "RACK-1",
+    "kind": "single_fault"
+  },
+  "expected": {
+    "exposed_services": [
+      "SVC-REFRIG-0",
+      "SVC-REFRIG-1"
+    ],
+    "service_first_fault_tolerated": {
+      "SVC-POWER": false,
+      "SVC-REFRIG-0": false,
+      "SVC-REFRIG-1": false
+    }
+  },
+  "adjudicated_by": "R4 corpus construction (rack SPOF for both rooms); reviewer: founder"
+}

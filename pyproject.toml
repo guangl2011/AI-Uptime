@@ -28,7 +28,7 @@ include = ["uptime_api*"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests", "seed"]
+src = ["src", "tests", "seed", "evals"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -44,3 +44,8 @@ strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Repo root must be importable in every test run (the evals/ package sits
+# there): a bare `pytest` invocation doesn't put CWD on sys.path, and
+# without this the directory tests/evals/ shadows the real package as a
+# namespace package — `import evals.corpus` fails with ModuleNotFoundError.
+pythonpath = ["."]

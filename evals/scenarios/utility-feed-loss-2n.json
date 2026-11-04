@@ -1,0 +1,349 @@
+{
+  "scenario_id": "utility-feed-loss-2n",
+  "title": "Utility feed loss under 2N power sources",
+  "description": "The utility feed fails while a standby generator shares its supply path in a 2N configuration. The transfer switch carries the load on the remaining full-capacity path, so no service is interrupted. The downstream chain (ATS -> PDU -> service) is N-configured, so the power service is still not first-fault-tolerant overall \u2014 the scenario pins the distinction between an absorbed source fault and an unprotected distribution chain.",
+  "market": "cold_chain",
+  "facility_id": "scenario-2n-utility-loss",
+  "topology": {
+    "author": "eval_scenarios",
+    "notes": "Scenario topology: utility-feed-loss-2n",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "Main PDU",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "refrigeration_rack",
+        "name": "Compressor rack 1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "COMP-1-1",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "COMP-1-2",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-2",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "COND-1",
+        "node_type": "asset",
+        "asset_type": "condenser",
+        "name": "Condenser 1",
+        "location": "roof",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "CR-0",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 0",
+        "location": "freezer wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "CR-1",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 1",
+        "location": "cooler wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-0",
+        "node_type": "service",
+        "name": "Cold Room 0 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-1",
+        "node_type": "service",
+        "name": "Cold Room 1 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "2N",
+        "member_group": "power_sources"
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "COMP-1-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "rack_compressors-1"
+      },
+      {
+        "from_node": "COMP-1-2",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "rack_compressors-1"
+      },
+      {
+        "from_node": "COND-1",
+        "to_node": "RACK-1",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-0",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-REFRIG-0",
+        "to_node": "CR-0",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-0",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-REFRIG-1",
+        "to_node": "CR-1",
+        "failure_mode": "refrigerant_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:utility-feed-loss-2n"
+        },
+        "redundancy_config": "N"
+      }
+    ]
+  },
+  "inject": {
+    "asset_key": "UTILITY-1",
+    "kind": "single_fault"
+  },
+  "expected": {
+    "exposed_services": [],
+    "service_first_fault_tolerated": {
+      "SVC-POWER": false,
+      "SVC-REFRIG-0": false,
+      "SVC-REFRIG-1": false
+    }
+  },
+  "adjudicated_by": "R4 corpus construction (2N source pair tolerates one full-path loss); reviewer: founder"
+}

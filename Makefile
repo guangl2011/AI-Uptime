@@ -1,4 +1,4 @@
-.PHONY: demo seed test check install frontend-install clean
+.PHONY: demo seed eval test check install frontend-install clean
 
 # The package lives under src/ and is installed editable into .venv; make
 # bootstrap the venv from pyproject.toml on first use so a fresh clone runs
@@ -27,6 +27,12 @@ demo: frontend-install $(VENV)/bin/python
 seed: $(VENV)/bin/python
 	$(PYTHON) seed/generate_seed.py
 
+# Full evaluation harness (evals/): seeded synthetic corpus -> assessor ->
+# metric gates. Writes eval-report.md/.json under eval-results/ (gitignored);
+# non-zero exit when any gate fails. Mirrors the sibling repo's `make eval`.
+eval: $(VENV)/bin/python
+	$(PYTHON) -m evals --output-dir eval-results
+
 frontend-install:
 	npm --prefix frontend ci --no-audit --no-fund --silent
 
@@ -34,9 +40,10 @@ test: $(VENV)/bin/python
 	$(PYTHON) -m pytest -q
 
 check: $(VENV)/bin/python
-	$(RUFF) check src tests seed
-	$(MYPY) src
+	$(RUFF) check src tests seed evals
+	$(MYPY) src evals
 	$(PYTHON) -m pytest -q
+	$(PYTHON) -m evals --output-dir eval-results
 
 clean:
 	rm -rf $(VENV)
