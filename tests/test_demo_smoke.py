@@ -31,7 +31,7 @@ def test_seed_assets_within_phase1_band(seed_facility: dict[str, Any]) -> None:
 def test_demo_runs_end_to_end(capsys: pytest.CaptureFixture[str]) -> None:
     run_demo()  # returns normally only if every stage passed
     captured = capsys.readouterr()
-    assert "[demo] Phase 1 core domain complete" in captured.out
+    assert "[demo] Phase 2 onboarding scanner complete" in captured.out
 
 
 def test_seed_segments_match_market_sequence(seed_facility: dict[str, Any]) -> None:

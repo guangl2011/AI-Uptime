@@ -1,0 +1,246 @@
+/* Console styling — plain CSS, no framework in this repo. */
+
+:root {
+  color-scheme: light;
+  --border: #d4d8de;
+  --text: #1c2733;
+  --muted: #66707a;
+  --accent: #0b5cad;
+  --high: #b3261e;
+  --elevated: #9a6500;
+  --low: #1e6b34;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: var(--text);
+  background: #f6f7f9;
+}
+
+main {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.15rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin-top: 1.5rem;
+}
+
+section {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.steps {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.steps button {
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.steps button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button {
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+}
+
+button:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  text-decoration: underline;
+}
+
+.facility-list {
+  list-style: none;
+  padding: 0;
+}
+
+.facility-list li {
+  margin: 0.25rem 0;
+}
+
+.node-list {
+  columns: 2;
+  margin: 0.25rem 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+  font-size: 0.92rem;
+}
+
+code {
+  background: #eef1f4;
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+
+.error {
+  background: #fdecea;
+  border: 1px solid var(--high);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--high);
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.loading {
+  color: var(--muted);
+}
+
+.citations {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.findings li {
+  margin: 0.75rem 0;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  background: #eef1f4;
+}
+
+.badge.single_point_of_failure {
+  background: #fdecea;
+  color: var(--high);
+}
+
+.badge.missing_redundancy {
+  background: #fff4e0;
+  color: var(--elevated);
+}
+
+.badge.unserved_service {
+  background: #e7f0fa;
+  color: var(--accent);
+}
+
+.risk-high {
+  color: var(--high);
+  font-weight: 700;
+}
+
+.risk-elevated {
+  color: var(--elevated);
+  font-weight: 700;
+}
+
+.risk-low {
+  color: var(--low);
+}
+
+.preview {
+  margin-top: 1rem;
+}
+
+.file-label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.history ul {
+  list-style: none;
+  padding: 0;
+}
