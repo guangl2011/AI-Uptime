@@ -1,0 +1,33 @@
+{
+  "assets": [
+    {
+      "asset_id": "COMP-01",
+      "asset_type": "compressor",
+      "location": "machine room"
+    },
+    {
+      "asset_id": "COMP-02",
+      "asset_type": "compressor",
+      "location": "machine room"
+    },
+    {
+      "asset_id": "RACK-01",
+      "asset_type": "refrigeration_rack",
+      "location": "machine room"
+    },
+    {
+      "asset_id": "COLDROOM-1",
+      "asset_type": "cold_room",
+      "location": "freezer wing"
+    },
+    {
+      "asset_id": "FEED-UPS-1",
+      "asset_type": "ups_feed",
+      "location": "electrical room"
+    }
+  ],
+  "facility_id": "cold_chain_example_01",
+  "name": "Example Cold Storage \u2014 Phase 0 stub",
+  "note": "Phase 0 stub \u2014 no graph, redundancy, or evidence yet.",
+  "segment": "cold_chain"
+}
