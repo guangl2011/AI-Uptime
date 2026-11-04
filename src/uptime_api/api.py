@@ -236,16 +236,22 @@ async def upload_inventory(
 def run_assessment(
     facility_id: str,
     payload: assessor_schemas.AssessmentCreate,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> assessor_schemas.AssessmentReport:
     """Run the scanner against one pinned graph version and persist the report.
 
     The report is computed once and stored; reads serve the stored JSON, so
-    the same assessment id is byte-for-byte reproducible.
+    the same assessment id is byte-for-byte reproducible. Forecasts ride on
+    the app-level feature flag (default OFF); they are informational and
+    nothing executes on them.
     """
     service = AssessmentService(session)
+    forecaster = getattr(request.app.state, "forecaster", None)
     try:
-        _, report = service.run_assessment(facility_id, payload.author, payload.version_no)
+        _, report = service.run_assessment(
+            facility_id, payload.author, payload.version_no, forecaster
+        )
     except (FacilityNotFound, GraphVersionNotFound) as error:
         raise _not_found(error) from error
     return assessor_schemas.AssessmentReport.model_validate(report)

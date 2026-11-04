@@ -8,7 +8,6 @@ from uptime_api.assessor.enums import RiskLevel
 from uptime_api.assessor.scoring import (
     EXPOSED_SERVICE_WEIGHT,
     SERVICE_BASE_SCORE,
-    TOLERATED_SERVICE_WEIGHT,
     UNPROTECTED_SUPPLIER_WEIGHT,
     build_report,
     risk_level_for,
@@ -97,7 +96,10 @@ def test_declared_redundancy_with_one_member_absorbs_nothing(b: Any) -> None:
 # -- Scoring model ------------------------------------------------------------
 
 
-def test_asset_score_weights_exposed_and_tolerated_services(b: Any) -> None:
+def test_asset_score_counts_exposed_services_only(b: Any) -> None:
+    # Calibration discipline: a fault the redundancy fully absorbs interrupts
+    # nothing, so it must score zero — absorbed impact is reported in
+    # tolerated_services, never scored as if it were exposure.
     nodes = [
         b.asset("PROTECTED", b.asset_type.GENERATOR),
         b.asset("SPARE", b.asset_type.GENERATOR),
@@ -112,10 +114,14 @@ def test_asset_score_weights_exposed_and_tolerated_services(b: Any) -> None:
     report = build_report(b.snapshot(nodes, edges))
 
     scores = {a.node_key: a.criticality.score for a in report.assets}
-    # PROTECTED: SVC-EXPOSED exposed (40) + SVC-TOLERATED absorbed (10).
-    assert scores["PROTECTED"] == EXPOSED_SERVICE_WEIGHT + TOLERATED_SERVICE_WEIGHT
-    # SPARE: only SVC-TOLERATED, absorbed.
-    assert scores["SPARE"] == TOLERATED_SERVICE_WEIGHT
+    # PROTECTED: one exposed service, the other feed absorbed.
+    assert scores["PROTECTED"] == EXPOSED_SERVICE_WEIGHT
+    assert scores["PROTECTED"] > scores["SPARE"]
+    # SPARE: only absorbed impact — zero, but still visible in tolerated.
+    assert scores["SPARE"] == 0
+    spare = next(a for a in report.assets if a.node_key == "SPARE")
+    assert spare.tolerated_services == ["SVC-TOLERATED"]
+    assert any("absorbed" in driver for driver in spare.criticality.drivers)
 
 
 def test_asset_score_is_capped_at_100(b: Any) -> None:

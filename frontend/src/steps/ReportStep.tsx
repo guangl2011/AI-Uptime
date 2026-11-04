@@ -6,7 +6,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, getAssessment, listAssessments, runAssessment } from '../api'
-import type { AssessmentReport, AssessmentSummary, EvidenceCitation, Finding } from '../types'
+import type {
+  AssessmentReport,
+  AssessmentSummary,
+  EvidenceCitation,
+  Finding,
+  RiskForecast,
+  ServiceAssessment,
+} from '../types'
 import { ErrorNote } from './ErrorNote'
 
 interface Props {
@@ -18,6 +25,7 @@ const FINDING_LABELS: Record<Finding['kind'], string> = {
   single_point_of_failure: 'Single point of failure',
   missing_redundancy: 'Missing redundancy',
   unserved_service: 'Unserved service',
+  life_safety_isolation: 'Life-safety isolation',
 }
 
 function CitationList({ citations }: { citations: EvidenceCitation[] }) {
@@ -37,6 +45,59 @@ function CitationList({ citations }: { citations: EvidenceCitation[] }) {
 
 function riskClass(riskLevel: string): string {
   return `risk-${riskLevel}`
+}
+
+/** Life-safety marker: a hospital service whose supply must stay isolated. */
+function ServiceName({ service }: { service: ServiceAssessment }) {
+  return (
+    <>
+      <code>{service.service_id}</code>{' '}
+      {service.life_safety && <span className="badge life_safety">life safety</span>}
+    </>
+  )
+}
+
+/** Forecasts are informational estimates with uncertainty bounds — the flag
+ *  exists so the module can be evaluated; nothing executes on these values. */
+function Forecasts({ forecasts }: { forecasts: RiskForecast[] }) {
+  if (forecasts.length === 0) {
+    return null
+  }
+  return (
+    <>
+      <h3>Risk forecasts (WP2, feature-flagged)</h3>
+      <p className="note">
+        Informational estimates with uncertainty bounds — reported, not gated, and
+        nothing in the system acts on them. No equipment control exists in this product.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>p(fault, {forecasts[0].horizon_days}d)</th>
+            <th>95% band</th>
+            <th>Redundancy</th>
+            <th>Basis</th>
+          </tr>
+        </thead>
+        <tbody>
+          {forecasts.map((forecast) => (
+            <tr key={forecast.asset_key}>
+              <td>
+                <code>{forecast.asset_key}</code>
+              </td>
+              <td>{forecast.p_fault.toFixed(3)}</td>
+              <td>
+                [{forecast.lower.toFixed(3)}, {forecast.upper.toFixed(3)}]
+              </td>
+              <td>{forecast.redundancy_class ?? '—'}</td>
+              <td>{forecast.basis}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
 }
 
 function ReportView({ report }: { report: AssessmentReport }) {
@@ -80,7 +141,7 @@ function ReportView({ report }: { report: AssessmentReport }) {
           {report.services.map((service) => (
             <tr key={service.service_id}>
               <td>
-                <code>{service.service_id}</code>
+                <ServiceName service={service} />
               </td>
               <td>{service.redundancy}</td>
               <td>
@@ -149,6 +210,8 @@ function ReportView({ report }: { report: AssessmentReport }) {
           </ul>
         </>
       )}
+
+      <Forecasts forecasts={report.forecasts} />
     </div>
   )
 }

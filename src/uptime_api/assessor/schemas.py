@@ -14,6 +14,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from uptime_api.assessor.enums import FindingKind, RiskLevel
+from uptime_api.forecasting.schema import RiskForecast  # noqa: F401  (report contract)
 from uptime_api.graph.enums import AssetType, RedundancyConfig, SourceKind
 
 
@@ -59,6 +60,9 @@ class ServiceAssessment(BaseModel):
     exposure: Exposure
     evidence: list[EvidenceCitation]
     data_gaps: list[str]
+    # Hospital semantics (Phase 4): the service carries the life-safety
+    # attribute. Default keeps stored pre-Phase-4 reports readable.
+    life_safety: bool = False
 
 
 class AssetAssessment(BaseModel):
@@ -105,6 +109,8 @@ class AssessmentReport(BaseModel):
     findings: list[Finding]
     data_gaps: list[str]
     open_questions: list[str]
+    # Populated only when the WP2 forecasting flag is enabled (default off).
+    forecasts: list[RiskForecast] = []
 
 
 class AssessmentCreate(BaseModel):

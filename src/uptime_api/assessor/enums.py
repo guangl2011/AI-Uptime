@@ -19,3 +19,4 @@ class FindingKind(enum.StrEnum):
     SINGLE_POINT_OF_FAILURE = "single_point_of_failure"
     MISSING_REDUNDANCY = "missing_redundancy"
     UNSERVED_SERVICE = "unserved_service"
+    LIFE_SAFETY_ISOLATION = "life_safety_isolation"

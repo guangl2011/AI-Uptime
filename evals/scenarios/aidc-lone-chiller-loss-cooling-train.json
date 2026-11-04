@@ -1,0 +1,385 @@
+{
+  "scenario_id": "aidc-lone-chiller-loss-cooling-train",
+  "title": "Lone chiller loss in an AIDC cooling train",
+  "description": "The only chiller of a row fails. Its fault is unabsorbed into the row's chilled-water service, but the N+1 chilled-water pump pair absorbs the cascade at the CDU: the fault stops at the redundant pump group, so cooling and IT services are not exposed by this single fault. Pins the AIDC cooling-train semantics the corpus uses (absorption at the first redundant downstream group).",
+  "market": "aidc",
+  "facility_id": "scenario-aidc-chiller-loss",
+  "topology": {
+    "author": "eval_scenarios",
+    "notes": "Scenario topology: aidc-lone-chiller-loss-cooling-train",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "name": "Utility feed",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "utility_feed",
+        "location": "site entrance"
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "name": "Automatic transfer switch",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "ats",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "UPS-1",
+        "node_type": "asset",
+        "name": "UPS bank",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "ups",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "name": "PDU",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "pdu",
+        "location": "electrical room"
+      },
+      {
+        "node_key": "CHILLER-1-1",
+        "node_type": "asset",
+        "name": "Chiller 1-1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "chiller",
+        "location": "plant deck"
+      },
+      {
+        "node_key": "PUMP-1-1",
+        "node_type": "asset",
+        "name": "CHW pump 1-1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "pump",
+        "location": "plant deck"
+      },
+      {
+        "node_key": "PUMP-1-2",
+        "node_type": "asset",
+        "name": "CHW pump 1-2",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "pump",
+        "location": "plant deck"
+      },
+      {
+        "node_key": "CDU-1",
+        "node_type": "asset",
+        "name": "Cooling distribution unit 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "cdu",
+        "location": "row 1"
+      },
+      {
+        "node_key": "CRAH-1",
+        "node_type": "asset",
+        "name": "CRAH 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "crah",
+        "location": "row 1"
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "name": "IT rack row 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "asset_type": "it_rack",
+        "location": "row 1"
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        }
+      },
+      {
+        "node_key": "SVC-CHW-1",
+        "node_type": "service",
+        "name": "Row 1 chilled water",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        }
+      },
+      {
+        "node_key": "SVC-COOLING-1",
+        "node_type": "service",
+        "name": "Row 1 cooling",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        }
+      },
+      {
+        "node_key": "SVC-IT-1",
+        "node_type": "service",
+        "name": "Row 1 IT load",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "UPS-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "UPS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CHILLER-1-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "CHILLER-1-1",
+        "to_node": "SVC-CHW-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "SVC-CHW-1",
+        "to_node": "PUMP-1-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "SVC-CHW-1",
+        "to_node": "PUMP-1-2",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "PUMP-1-1",
+        "to_node": "CDU-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "chw_pumps-1"
+      },
+      {
+        "from_node": "PUMP-1-2",
+        "to_node": "CDU-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": "N+1",
+        "member_group": "chw_pumps-1"
+      },
+      {
+        "from_node": "CDU-1",
+        "to_node": "CRAH-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "CRAH-1",
+        "to_node": "SVC-COOLING-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "SVC-COOLING-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-IT-1",
+        "failure_mode": "power_loss",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_scenarios",
+          "source_ref": "scenario:aidc-lone-chiller-loss-cooling-train"
+        },
+        "redundancy_config": null,
+        "member_group": null
+      }
+    ]
+  },
+  "inject": {
+    "asset_key": "CHILLER-1-1",
+    "kind": "single_fault"
+  },
+  "expected": {
+    "exposed_services": [
+      "SVC-CHW-1"
+    ],
+    "service_first_fault_tolerated": {
+      "SVC-POWER": false,
+      "SVC-CHW-1": false,
+      "SVC-COOLING-1": false,
+      "SVC-IT-1": false
+    }
+  },
+  "adjudicated_by": "R4 corpus construction (single chiller exposes chilled water; the N+1 pump pair absorbs the cascade); reviewer: founder"
+}

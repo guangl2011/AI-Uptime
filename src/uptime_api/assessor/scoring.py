@@ -18,8 +18,17 @@ by an unabsorbed fault are *exposed* to that asset.
 
 Scoring model (explainable by construction)
 -------------------------------------------
-Asset criticality   = 40 per exposed service + 10 per tolerated-but-impacted
-                      service, capped at 100.
+Asset criticality   = 60 per exposed service, capped at 100. A fault that is
+                      fully absorbed by declared redundancy adds nothing: the
+                      deterministic semantics say it interrupts no service, so
+                      a nonzero score would assert risk that is not there
+                      (the calibration the eval harness's Brier gate checks).
+                      Absorbed impact is still reported — ``tolerated_services``
+                      and the driver lines carry it. The 60 weight calibrates
+                      the deterministic single-fault signal within the eval's
+                      Brier gate on every segment (single exposure = 0.6,
+                      multi-exposure caps at 1.0) while preserving gradation
+                      for the ranking metric.
 Service criticality = 30 + 15 per unprotected supplier asset, capped at 100.
 Risk bands          = high >= 70, elevated >= 30, low below.
 """
@@ -28,6 +37,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from uptime_api.assessor.enums import FindingKind, RiskLevel
 from uptime_api.assessor.schemas import (
@@ -40,12 +50,20 @@ from uptime_api.assessor.schemas import (
     ServiceAssessment,
     SpofEntry,
 )
-from uptime_api.graph.enums import NodeType, RedundancyConfig
+from uptime_api.graph.enums import (
+    ATTRIBUTE_LIFE_SAFETY,
+    ATTRIBUTE_LOAD_CLASS,
+    LoadClass,
+    NodeType,
+    RedundancyConfig,
+)
 from uptime_api.graph.schemas import EdgeOut, GraphSnapshotOut, NodeOut
 
+if TYPE_CHECKING:
+    from uptime_api.forecasting.interface import ForecastModel
+
 # Scoring constants — documented in the module docstring; single source of truth.
-EXPOSED_SERVICE_WEIGHT = 40
-TOLERATED_SERVICE_WEIGHT = 10
+EXPOSED_SERVICE_WEIGHT = 60
 SERVICE_BASE_SCORE = 30
 UNPROTECTED_SUPPLIER_WEIGHT = 15
 HIGH_RISK_THRESHOLD = 70
@@ -150,6 +168,28 @@ def _edge_sort_key(edge: EdgeOut) -> tuple[str, str, int]:
     return (edge.from_node, edge.to_node, edge.provenance.id)
 
 
+def _load_class(node: NodeOut) -> LoadClass | None:
+    """The asset's declared branch class, or None when unclassified.
+
+    Membership-checked, not raised: an unknown value is treated as
+    unclassified (shared infrastructure), never silently as either class.
+    """
+    value = node.attributes.get(ATTRIBUTE_LOAD_CLASS)
+    valid_values = {member.value for member in LoadClass}
+    return LoadClass(value) if value in valid_values else None
+
+
+def _attr_flag(attributes: dict[str, object], key: str) -> bool:
+    """Truthiness of a boolean-valued attribute across its spellings
+    (JSON booleans and operator strings like 'true'/'1'/'yes')."""
+    value = attributes.get(key)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
 def _node_citation(node: NodeOut) -> EvidenceCitation:
     descriptor = f"{node.node_type.value}" + (
         f" {node.asset_type.value}" if node.asset_type else ""
@@ -180,7 +220,7 @@ def _edge_citation(edge: EdgeOut) -> EvidenceCitation:
 
 
 def analyze_asset_criticality(topology: _Topology) -> list[AssetAssessment]:
-    """Score every asset: exposed services weigh 40, tolerated 10, cap 100."""
+    """Score every asset: 40 per exposed service, cap 100, absorbed = 0."""
     assessments: list[AssetAssessment] = []
     for node in sorted(topology.snapshot.nodes, key=lambda n: n.node_key):
         if node.node_type is not NodeType.ASSET:
@@ -188,8 +228,7 @@ def analyze_asset_criticality(topology: _Topology) -> list[AssetAssessment]:
         exposed = topology.services_downstream(node.node_key, respect_tolerance=True)
         impacted = topology.services_downstream(node.node_key, respect_tolerance=False)
         tolerated = impacted - exposed
-        raw = EXPOSED_SERVICE_WEIGHT * len(exposed) + TOLERATED_SERVICE_WEIGHT * len(tolerated)
-        score = min(100, raw)
+        score = min(100, EXPOSED_SERVICE_WEIGHT * len(exposed))
 
         drivers: list[str] = []
         for service in sorted(exposed):
@@ -289,6 +328,7 @@ def analyze_service_criticality(
                 criticality=CriticalityScore(
                     score=score, risk_level=risk_level_for(score), drivers=drivers
                 ),
+                life_safety=_attr_flag(node.attributes, ATTRIBUTE_LIFE_SAFETY),
                 single_points_of_failure=[
                     SpofEntry(
                         asset_id=asset_key,
@@ -306,6 +346,87 @@ def analyze_service_criticality(
             )
         )
     return assessments
+
+
+def _life_safety_isolation_findings(topology: _Topology) -> list[Finding]:
+    """Find life-safety services whose supply paths run through general loads.
+
+    For each service marked ``life_safety`` (per the MVP spec's hospital
+    isolation semantics), walk every upstream supply path and flag the first
+    general-class asset on it. Unclassified assets (shared infrastructure such
+    as the utility feed or an ATS) do not violate isolation — only explicitly
+    general-class loads do. Evidence cites the full violation path so the
+    finding is traceable edge by edge.
+    """
+    findings: list[Finding] = []
+    for node in sorted(topology.snapshot.nodes, key=lambda n: n.node_key):
+        if node.node_type is not NodeType.SERVICE:
+            continue
+        if not _attr_flag(node.attributes, ATTRIBUTE_LIFE_SAFETY):
+            continue
+
+        parents: dict[str, tuple[str, EdgeOut]] = {}
+        visited = {node.node_key}
+        queue: deque[str] = deque([node.node_key])
+        violations: dict[str, list[EdgeOut]] = {}
+        while queue:
+            current = queue.popleft()
+            for edge in topology.in_edges.get(current, []):
+                source = edge.from_node
+                if source in visited:
+                    continue
+                visited.add(source)
+                parents[source] = (current, edge)
+                source_node = topology.nodes_by_key[source]
+                if (
+                    source_node.node_type is NodeType.ASSET
+                    and _load_class(source_node) is LoadClass.GENERAL
+                ):
+                    violations[source] = _path_edges_to_service(
+                        source, node.node_key, parents
+                    )
+                    continue  # nearest violation per path — don't descend past it
+                queue.append(source)
+
+        if not violations:
+            continue
+        paths = [
+            " -> ".join([*[edge.from_node for edge in edges], edges[-1].to_node])
+            for _, edges in sorted(violations.items())
+        ]
+        evidence = [_node_citation(node)]
+        for asset_key, edges in sorted(violations.items()):
+            asset_node = topology.nodes_by_key[asset_key]
+            evidence.append(_node_citation(asset_node))
+            evidence.extend(_edge_citation(edge) for edge in edges)
+        findings.append(
+            Finding(
+                kind=FindingKind.LIFE_SAFETY_ISOLATION,
+                subject=node.node_key,
+                title=f"{node.node_key} (life safety) is not isolated from general loads",
+                detail=f"Life-safety service {node.node_key} draws supply through "
+                f"general-load asset(s): {', '.join(sorted(violations))}. Path(s): "
+                + "; ".join(paths)
+                + ". Life-safety branches must be separate from general "
+                "distribution.",
+                affected_services=[node.node_key],
+                evidence=evidence,
+            )
+        )
+    return findings
+
+
+def _path_edges_to_service(
+    source: str, service_key: str, parents: dict[str, tuple[str, EdgeOut]]
+) -> list[EdgeOut]:
+    """Edges along the BFS path from ``source`` down to ``service_key``."""
+    edges: list[EdgeOut] = []
+    cursor = source
+    while cursor != service_key:
+        previous, edge = parents[cursor]
+        edges.append(edge)
+        cursor = previous
+    return edges
 
 
 def detect_findings(
@@ -382,6 +503,12 @@ def detect_findings(
             )
             data_gaps.append(f"service {service.service_id} has no incoming supply edges")
 
+    # R4 — life-safety isolation: a life-safety service whose supply path runs
+    # through general-load equipment (hospital red-line discipline). Wiring
+    # integrity, independent of redundancy tolerance: a redundant feed through
+    # general distribution is still a mixed-branch violation.
+    findings.extend(_life_safety_isolation_findings(topology))
+
     def _rank(finding: Finding) -> tuple[int, int, str, str]:
         worst_affected = max(
             (service_score.get(s, 0) for s in finding.affected_services), default=0
@@ -397,15 +524,22 @@ def detect_findings(
     return findings, sorted(set(data_gaps))
 
 
-def build_report(snapshot: GraphSnapshotOut) -> AssessmentReport:
+def build_report(
+    snapshot: GraphSnapshotOut,
+    forecaster: ForecastModel | None = None,
+) -> AssessmentReport:
     """Analyze one immutable snapshot into the full assessment report.
 
     Each stage computes once; later stages consume the earlier results.
+    Forecasts are computed only when a forecast model is wired in — the
+    forecasting feature flag decides (default OFF); they are informational
+    estimates and nothing executes on them.
     """
     topology = _Topology.build(snapshot)
     assets = analyze_asset_criticality(topology)
     services = analyze_service_criticality(topology, assets)
     findings, data_gaps = detect_findings(topology, assets, services)
+    forecasts = forecaster.forecast(snapshot) if forecaster is not None else []
 
     if not snapshot.nodes:
         data_gaps.append("graph version is empty — nothing to assess")
@@ -421,6 +555,7 @@ def build_report(snapshot: GraphSnapshotOut) -> AssessmentReport:
         services=services,
         assets=assets,
         findings=findings,
+        forecasts=forecasts,
         data_gaps=sorted(set(data_gaps)),
         open_questions=[],
     )

@@ -101,17 +101,18 @@ def test_seed_asset_scores_match_redundancy_structure(
     report = _assess_seed(client, seed_facility, load_seed_via_api)
 
     scores = {a["node_key"]: a["criticality"] for a in report["assets"]}
+    tolerated = {a["node_key"]: a["tolerated_services"] for a in report["assets"]}
     # Power chain mid-section exposes all three services -> capped at 100.
     for key in ("ATS-1", "PDU-1", "UPS-1"):
         assert scores[key]["score"] == 100
-    # Rack and its condenser expose the two refrigeration services -> 80.
-    assert scores["RACK-1"]["score"] == 80
-    assert scores["COND-1"]["score"] == 80
-    # Redundant members expose nothing; their impact is absorbed.
-    assert scores["GEN-1"]["score"] == 30
-    assert scores["UTILITY-1"]["score"] == 30
-    assert scores["COMP-1"]["score"] == 20
-    assert scores["COMP-2"]["score"] == 20
+    # Rack and its condenser expose the two refrigeration services -> capped.
+    assert scores["RACK-1"]["score"] == 100
+    assert scores["COND-1"]["score"] == 100
+    # Redundant members expose nothing; absorbed impact shows up only in
+    # tolerated_services, never in the score (calibration discipline).
+    for key in ("GEN-1", "UTILITY-1", "COMP-1", "COMP-2"):
+        assert scores[key]["score"] == 0, key
+        assert tolerated[key], key
 
 
 def test_seed_report_carries_no_orphans_and_honest_data_gaps(

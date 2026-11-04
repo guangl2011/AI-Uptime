@@ -29,14 +29,19 @@ def _by_id(scenarios: list[dict[str, Any]], scenario_id: str) -> dict[str, Any]:
     return next(s for s in scenarios if s["scenario_id"] == scenario_id)
 
 
-def test_four_named_scenarios_ship(scenarios: list[dict[str, Any]]) -> None:
+def test_six_named_scenarios_ship(scenarios: list[dict[str, Any]]) -> None:
+    """Two cold-chain, one AIDC, one hospital + the Phase 3 pair — one named
+    gate per segment's canonical physics (market sequence: cold chain →
+    AIDC → hospitals)."""
     ids = [str(s["scenario_id"]) for s in scenarios]
-    assert len(ids) == len(set(ids)) == 4
+    assert len(ids) == len(set(ids)) == 6
     assert set(ids) == {
         "single-compressor-failure-n-plus-1",
         "single-compressor-failure-n",
         "utility-feed-loss-2n",
         "rack-failure-cascade-unserved-rooms",
+        "aidc-lone-chiller-loss-cooling-train",
+        "hospital-life-safety-isolation-mixed-medgas",
     }
 
 
@@ -67,7 +72,7 @@ def test_scenario_files_are_internally_consistent(
         }
         assert set(expected["exposed_services"]) <= services
         assert set(expected["service_first_fault_tolerated"]) == services
-        assert scenario["market"] == "cold_chain"
+        assert scenario["market"] in ("cold_chain", "aidc", "hospital")
         # The runner creates the facility via POST /facilities — the id must
         # satisfy its validation pattern.
         assert re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,62}", scenario["facility_id"])
@@ -76,7 +81,7 @@ def test_scenario_files_are_internally_consistent(
 def test_scenarios_run_green_through_the_api(client: TestClient) -> None:
     """Every shipped scenario passes its adjudicated expectation (live)."""
     outcomes = run_all_scenarios(client)
-    assert len(outcomes) == 4
+    assert len(outcomes) == 6
     for outcome in outcomes:
         assert outcome.passed, (outcome.scenario_id, outcome.failures)
 
@@ -103,3 +108,20 @@ def test_runner_catches_a_broken_redundancy_declaration(
             edge["redundancy_config"] = "N"  # degrade the pair to N
     outcome = run_scenario(client, scenario)
     assert not outcome.passed
+
+
+def test_runner_catches_a_missing_isolation_finding(
+    client: TestClient, scenarios: list[dict[str, Any]]
+) -> None:
+    """The findings check is a real gate: silence on a red-line violation
+    fails the hospital scenario."""
+    scenario = copy.deepcopy(_by_id(scenarios, "hospital-life-safety-isolation-mixed-medgas"))
+    scenario["facility_id"] = "scenario-tampered-isolation"  # fresh facility id
+    # Degrade the med-gas feeder into an unclassified asset: the wiring is
+    # unchanged but the load class that triggers the finding is gone.
+    for node in scenario["topology"]["nodes"]:
+        if node["node_key"] == "GENERAL-PANEL":
+            node["attributes"] = {}
+    outcome = run_scenario(client, scenario)
+    assert not outcome.passed
+    assert any("life_safety_isolation" in failure for failure in outcome.failures)
