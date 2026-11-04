@@ -1,33 +1,377 @@
 {
-  "assets": [
+  "author": "seed_corpus",
+  "edges": [
     {
-      "asset_id": "COMP-01",
-      "asset_type": "compressor",
-      "location": "machine room"
+      "failure_mode": "power_loss",
+      "from_node": "UTILITY-1",
+      "member_group": "power_sources",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "2N",
+      "to_node": "ATS-1"
     },
     {
-      "asset_id": "COMP-02",
-      "asset_type": "compressor",
-      "location": "machine room"
+      "failure_mode": "power_loss",
+      "from_node": "GEN-1",
+      "member_group": "power_sources",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "2N",
+      "to_node": "ATS-1"
     },
     {
-      "asset_id": "RACK-01",
-      "asset_type": "refrigeration_rack",
-      "location": "machine room"
+      "failure_mode": "power_loss",
+      "from_node": "ATS-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "UPS-1"
     },
     {
-      "asset_id": "COLDROOM-1",
-      "asset_type": "cold_room",
-      "location": "freezer wing"
+      "failure_mode": "power_loss",
+      "from_node": "UPS-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "PDU-1"
     },
     {
-      "asset_id": "FEED-UPS-1",
-      "asset_type": "ups_feed",
-      "location": "electrical room"
+      "failure_mode": "power_loss",
+      "from_node": "PDU-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "SVC-POWER"
+    },
+    {
+      "failure_mode": "power_loss",
+      "from_node": "SVC-POWER",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "RACK-1"
+    },
+    {
+      "failure_mode": "power_loss",
+      "from_node": "SVC-POWER",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "CR-1"
+    },
+    {
+      "failure_mode": "power_loss",
+      "from_node": "SVC-POWER",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "CR-2"
+    },
+    {
+      "failure_mode": "mechanical_failure",
+      "from_node": "COMP-1",
+      "member_group": "rack_compressors",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N+1",
+      "to_node": "RACK-1"
+    },
+    {
+      "failure_mode": "mechanical_failure",
+      "from_node": "COMP-2",
+      "member_group": "rack_compressors",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N+1",
+      "to_node": "RACK-1"
+    },
+    {
+      "failure_mode": "refrigerant_loss",
+      "from_node": "COND-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "RACK-1"
+    },
+    {
+      "failure_mode": "mechanical_failure",
+      "from_node": "RACK-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "SVC-REFRIG-CR1"
+    },
+    {
+      "failure_mode": "mechanical_failure",
+      "from_node": "RACK-1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "SVC-REFRIG-CR2"
+    },
+    {
+      "failure_mode": "refrigerant_loss",
+      "from_node": "SVC-REFRIG-CR1",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "CR-1"
+    },
+    {
+      "failure_mode": "refrigerant_loss",
+      "from_node": "SVC-REFRIG-CR2",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      },
+      "redundancy_config": "N",
+      "to_node": "CR-2"
     }
   ],
   "facility_id": "cold_chain_example_01",
-  "name": "Example Cold Storage \u2014 Phase 0 stub",
-  "note": "Phase 0 stub \u2014 no graph, redundancy, or evidence yet.",
+  "name": "Example Cold Storage",
+  "nodes": [
+    {
+      "asset_type": "utility_feed",
+      "attributes": {},
+      "location": "site entrance",
+      "name": "Utility feed",
+      "node_key": "UTILITY-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=2",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "generator",
+      "attributes": {
+        "fuel": "diesel",
+        "rated_kw": 750
+      },
+      "location": "electrical room",
+      "name": "Standby generator",
+      "node_key": "GEN-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=3",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "ats",
+      "attributes": {},
+      "location": "electrical room",
+      "name": "Automatic transfer switch",
+      "node_key": "ATS-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=4",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "ups",
+      "attributes": {
+        "battery_minutes": 15,
+        "rated_kva": 100
+      },
+      "location": "electrical room",
+      "name": "UPS module 1",
+      "node_key": "UPS-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=5",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "pdu",
+      "attributes": {},
+      "location": "electrical room",
+      "name": "Main PDU",
+      "node_key": "PDU-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=6",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "refrigeration_rack",
+      "attributes": {
+        "capacity_kw": 180,
+        "refrigerant": "R-404A"
+      },
+      "location": "machine room",
+      "name": "Compressor rack 1",
+      "node_key": "RACK-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "oem_doc",
+        "source_ref": "rack_oem_datasheet_revC#p=4",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "compressor",
+      "attributes": {
+        "rated_kw": 22
+      },
+      "location": "machine room",
+      "name": "Compressor 1",
+      "node_key": "COMP-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=8",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "compressor",
+      "attributes": {
+        "rated_kw": 22
+      },
+      "location": "machine room",
+      "name": "Compressor 2",
+      "node_key": "COMP-2",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=9",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "condenser",
+      "attributes": {
+        "rated_kw": 200
+      },
+      "location": "roof",
+      "name": "Rooftop condenser",
+      "node_key": "COND-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=10",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "cold_room",
+      "attributes": {
+        "setpoint_c": -18,
+        "volume_m3": 850
+      },
+      "location": "freezer wing",
+      "name": "Cold Room 1 (freezer)",
+      "node_key": "CR-1",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=11",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "asset_type": "cold_room",
+      "attributes": {
+        "setpoint_c": 2,
+        "volume_m3": 420
+      },
+      "location": "cooler wing",
+      "name": "Cold Room 2 (cooler)",
+      "node_key": "CR-2",
+      "node_type": "asset",
+      "provenance": {
+        "source_kind": "inventory_import",
+        "source_ref": "inventory_2026_11.csv#row=12",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "attributes": {},
+      "name": "Facility power distribution",
+      "node_key": "SVC-POWER",
+      "node_type": "service",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "attributes": {},
+      "name": "Cold Room 1 refrigeration",
+      "node_key": "SVC-REFRIG-CR1",
+      "node_type": "service",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      }
+    },
+    {
+      "attributes": {},
+      "name": "Cold Room 2 refrigeration",
+      "node_key": "SVC-REFRIG-CR2",
+      "node_type": "service",
+      "provenance": {
+        "source_kind": "technician_entry",
+        "source_ref": "technician_walkthrough_2026-11-01",
+        "source_system": "seed_corpus"
+      }
+    }
+  ],
+  "notes": "Phase 1 seed: rack (N+1 compressors) + power chain (2N sources).",
   "segment": "cold_chain"
 }

@@ -33,6 +33,11 @@ src = ["src", "tests", "seed"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection is the idiomatic exception to B008:
+# Depends(...) in parameter defaults is the documented pattern.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Body"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
