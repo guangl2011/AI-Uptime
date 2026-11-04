@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from uptime_api import __version__
 from uptime_api.api import router
+from uptime_api.assessor import models as assessor_models  # noqa: F401  (registers tables)
 from uptime_api.db import build_engine, build_session_factory, default_database_url
 from uptime_api.graph.models import Base
 

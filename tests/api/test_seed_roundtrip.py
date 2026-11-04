@@ -9,6 +9,7 @@ the API with provenance intact."
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -23,32 +24,12 @@ ALLOWED_SOURCE_KINDS = {
 }
 
 
-def _load_seed_via_api(client: TestClient, seed: dict[str, Any]) -> None:
-    created = client.post(
-        "/facilities",
-        json={
-            "id": seed["facility_id"],
-            "name": seed["name"],
-            "segment": seed["segment"],
-        },
-    )
-    assert created.status_code == 201, created.text
-    committed = client.post(
-        f"/facilities/{seed['facility_id']}/graph/versions",
-        json={
-            "author": seed["author"],
-            "notes": seed["notes"],
-            "nodes": seed["nodes"],
-            "edges": seed["edges"],
-        },
-    )
-    assert committed.status_code == 201, committed.text
-
-
 def test_seed_round_trips_with_provenance_intact(
-    client: TestClient, seed_facility: dict[str, Any]
+    client: TestClient,
+    seed_facility: dict[str, Any],
+    load_seed_via_api: Callable[[TestClient, dict[str, Any]], None],
 ) -> None:
-    _load_seed_via_api(client, seed_facility)
+    load_seed_via_api(client, seed_facility)
 
     snapshot = client.get(f"/facilities/{seed_facility['facility_id']}/graph").json()
     assert snapshot["version_no"] == 1

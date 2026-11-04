@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,34 @@ SEED_PATH = SEED_DIR / "example_facility.json"
 def seed_facility() -> dict[str, Any]:
     """The committed seed facility, exactly as shipped."""
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture()
+def load_seed_via_api() -> Callable[[TestClient, dict[str, Any]], None]:
+    """Load the seed facility through the real HTTP surface (create + commit)."""
+
+    def _load(client: TestClient, seed: dict[str, Any]) -> None:
+        created = client.post(
+            "/facilities",
+            json={
+                "id": seed["facility_id"],
+                "name": seed["name"],
+                "segment": seed["segment"],
+            },
+        )
+        assert created.status_code == 201, created.text
+        committed = client.post(
+            f"/facilities/{seed['facility_id']}/graph/versions",
+            json={
+                "author": seed["author"],
+                "notes": seed["notes"],
+                "nodes": seed["nodes"],
+                "edges": seed["edges"],
+            },
+        )
+        assert committed.status_code == 201, committed.text
+
+    return _load
 
 
 @pytest.fixture()

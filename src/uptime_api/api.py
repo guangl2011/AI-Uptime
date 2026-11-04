@@ -1,9 +1,12 @@
-"""HTTP surface — facilities, the versioned graph twin, and inventory import.
+"""HTTP surface — facilities, the versioned graph twin, inventory import, and
+assessments.
 
 Phase 1 route groups (MVP spec art_SSJ84EWf): facility creation, graph
 version commits/history/snapshots, and read-only equipment-inventory upload.
-Assessment routes land in a later phase. Nothing here can reach a facility
-system — the only writes are to AI-Uptime's own database.
+Phase 2 adds the onboarding-scanner surface: a dry-run inventory parse for
+the UI's fix-unresolved-rows loop, and assessment run/list/read pinned to a
+graph version. Nothing here can reach a facility system — the only writes
+are to AI-Uptime's own database.
 """
 
 from __future__ import annotations
@@ -14,6 +17,9 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
+from uptime_api.assessor import schemas as assessor_schemas
+from uptime_api.assessor.errors import AssessmentNotFound
+from uptime_api.assessor.service import AssessmentService
 from uptime_api.graph import schemas
 from uptime_api.graph.errors import (
     FacilityAlreadyExists,
@@ -141,6 +147,31 @@ def get_graph(
 # --- Inventory ingestion (read-only integrations only) -----------------------
 
 
+@router.post("/inventory/preview")
+async def preview_inventory(file: UploadFile) -> assessor_schemas.InventoryPreviewOut:
+    """Dry-run parse of an inventory upload — persists nothing.
+
+    The UI checks the parse, fixes flagged rows in the source text, and
+    re-previews before any commit, so the fix loop never writes garbage
+    topology. The parser is the same one the import route uses.
+    """
+    if file.filename is None:
+        raise HTTPException(status_code=422, detail="upload needs a filename (.csv or .json)")
+    content = await file.read()
+    try:
+        parsed: ParsedInventory = parse_inventory(content, file.filename)
+    except InventoryFormatError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return assessor_schemas.InventoryPreviewOut(
+        filename=file.filename,
+        parseable_nodes=len(parsed.nodes),
+        unresolved=[
+            {"row": u.row, "reason": u.reason.value, "detail": u.detail}
+            for u in parsed.unresolved
+        ],
+    )
+
+
 @router.post("/facilities/{facility_id}/inventory", status_code=201)
 async def upload_inventory(
     facility_id: str,
@@ -196,3 +227,55 @@ async def upload_inventory(
             for u in parsed.unresolved
         ],
     )
+
+
+# --- Assessment (the scanner wedge: run once, pinned, reproducible) ----------
+
+
+@router.post("/facilities/{facility_id}/assessments", status_code=201)
+def run_assessment(
+    facility_id: str,
+    payload: assessor_schemas.AssessmentCreate,
+    session: Session = Depends(get_session),
+) -> assessor_schemas.AssessmentReport:
+    """Run the scanner against one pinned graph version and persist the report.
+
+    The report is computed once and stored; reads serve the stored JSON, so
+    the same assessment id is byte-for-byte reproducible.
+    """
+    service = AssessmentService(session)
+    try:
+        _, report = service.run_assessment(facility_id, payload.author, payload.version_no)
+    except (FacilityNotFound, GraphVersionNotFound) as error:
+        raise _not_found(error) from error
+    return assessor_schemas.AssessmentReport.model_validate(report)
+
+
+@router.get("/facilities/{facility_id}/assessments")
+def list_assessments(
+    facility_id: str, session: Session = Depends(get_session)
+) -> list[assessor_schemas.AssessmentSummary]:
+    """Assessment history for a facility, oldest first."""
+    try:
+        return AssessmentService(session).list_assessments(facility_id)
+    except FacilityNotFound as error:
+        raise _not_found(error) from error
+
+
+@router.get("/facilities/{facility_id}/assessments/{assessment_id}")
+def get_assessment(
+    facility_id: str,
+    assessment_id: int,
+    session: Session = Depends(get_session),
+) -> assessor_schemas.AssessmentReport:
+    """Read one stored assessment report — never recomputed."""
+    service = AssessmentService(session)
+    try:
+        service.list_assessments(facility_id)  # 404 if the facility is unknown
+    except FacilityNotFound as error:
+        raise _not_found(error) from error
+    try:
+        report = service.get_report(facility_id, assessment_id)
+    except AssessmentNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return assessor_schemas.AssessmentReport.model_validate(report)
