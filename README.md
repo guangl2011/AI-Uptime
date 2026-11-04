@@ -7,15 +7,17 @@ evidence-cited risk assessment with explicit abstention where data is
 insufficient. Nothing in this system writes to facility control systems:
 integrations are read-only, agents propose, humans execute.
 
-> Phase 0 scaffold — the codebase is a stub baseline for the phases that
-> follow (graph model, assessor, report) per the MVP specification.
+> **Phase 1 — core domain landed:** the versioned graph twin (nodes, edges,
+> N/N+1/2N redundancy configs, provenance on every element), read-only
+> equipment-inventory import, and the facility/graph API. The assessor and
+> report layers follow in later phases per the MVP specification.
 
 ## Quickstart
 
 ```bash
 pip install -e '.[dev]'   # 1. install the backend + dev tools
-make demo                 # 2. load the seed facility, boot the backend,
-                          #    check liveness, build the frontend
+make demo                 # 2. load the seed facility through the API,
+                          #    verify provenance, build the frontend
 make test                 # 3. the test suite (same thresholds CI runs)
 make check                # 4. ruff + mypy + pytest, as CI runs them
 ```
@@ -33,10 +35,19 @@ make check                # 4. ruff + mypy + pytest, as CI runs them
 ```
 src/uptime_api/   backend layers (ingestion, graph, assessor, report land in later phases)
 frontend/         React + Vite + TypeScript console
-seed/             seed facility (Phase 0 stub; synthetic corpus generator follows)
+seed/             seed facility (cold-chain example with provenance; synthetic corpus generator follows)
 tests/            mirrors src/uptime_api/
 docs/             testing plan and project docs
 ```
+
+## API surface (Phase 1)
+
+- `POST /facilities` · `GET /facilities` · `GET /facilities/{fid}`
+- `POST /facilities/{fid}/graph/versions` — commit a full graph snapshot as a new immutable version
+- `GET /facilities/{fid}/graph/versions` — version history
+- `GET /facilities/{fid}/graph?version=N` — read a pinned version (default: latest), provenance intact
+- `POST /facilities/{fid}/inventory` — CSV/JSON equipment-inventory import (first version only; ambiguous rows are flagged, never guessed)
+- `GET /healthz`
 
 ## Testing
 
