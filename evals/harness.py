@@ -21,15 +21,26 @@ by-construction labels:
 - no-leakage — every replay fold checked against both split invariants;
 - scenarios — the named fault-injection known-answer gates.
 
-Phase 4 adds two things. First, **per-market-segment reporting**: every
-metric is computed per segment (cold chain / AIDC / hospitals) as well as
-overall, and the same thresholds gate each segment, so a regression in one
-segment is visible and blocking instead of averaged away. Second, a
-**forecasting pass**: with the WP2 ``ForecastModel`` temporarily installed
-on the app (the flag exists to be evaluated), a second pinned assessment
-per facility is scored against the same by-construction labels. Those
-forecast metrics are reported, never gated — probability-bearing outputs
-stay reported-not-gated until labeled data exists (locked testing plan).
+Phase 4 added per-market-segment reporting: every metric is computed per
+segment (cold chain / AIDC / hospitals) as well as overall, and the same
+thresholds gate each segment, so a regression in one segment is visible and
+blocking instead of averaged away.
+
+Phase 5 turns the forecasting pass into the WP2 go/no-go evaluation. The
+calibrated forecaster (``CalibratedForecastModel``) is *fit* on the training
+facilities' labeled cases — a facility-level holdout via
+``train_eval_split``, so no scored case was ever seen by the fit — and its
+held-out ``p_fault`` estimates are scored against the same by-construction
+labels. The proposal's go/no-go gates now apply to that held-out score and
+gate the build: AUROC >= 0.80, and a Brier score at least 15% better than
+the flat-prior baseline with the bootstrap improvement interval excluding
+zero. Calibration (ECE + reliability bins) is reported alongside. Abstained
+forecasts carry the flat-prior fallback value, so abstention can never score
+better than the baseline it defers to. The gates are honestly winnable on
+the synthetic corpus (the placeholder's fixed priors were miscalibrated —
+its Brier was *worse* than baseline) and honestly labeled: every forecast
+number is synthetic-only, proving the calibration machinery, not field
+performance.
 
 Gates are threshold checks evaluated in ``evaluate_gates`` (overall) and
 ``evaluate_segment_gates`` (per segment); the runner (``python -m evals``)
@@ -56,12 +67,22 @@ from evals.metrics import (
     brier,
     brier_flat_baseline,
     expected_calibration_error,
+    relative_brier_improvement,
     reliability_bins,
     spearman,
 )
 from evals.scenarios import ScenarioOutcome, run_all_scenarios
 from evals.splits import LeakageCheck, build_folds, check_no_leakage
-from uptime_api.forecasting import FlatPriorForecastModel
+from uptime_api.forecasting.calibrated import CalibratedForecastModel
+from uptime_api.forecasting.calibration import (
+    CANONICAL_EVAL_FRACTION,
+    CalibrationCase,
+    fit_calibration,
+    train_eval_split,
+)
+from uptime_api.forecasting.features import asset_protection_features
+from uptime_api.forecasting.schema import ForecastStatus
+from uptime_api.graph.schemas import GraphSnapshotOut
 
 # Gate thresholds. AUROC >= 0.80 is the proposal's go/no-go target applied
 # to labeled synthetic faults; the rest are the harness's own regression
@@ -75,6 +96,10 @@ SPOF_FPR_GATE = 0.02
 RANKING_TAU_GATE = 0.60
 BRIER_GATE = 0.10
 BOOTSTRAP_SAMPLES = 400
+# Phase 5 WP2 go/no-go: the calibrated forecaster must beat the flat-prior
+# baseline by >= 15% relative Brier, established with the paired bootstrap
+# improvement interval excluding zero, on the held-out facility split.
+FORECAST_BRIER_RELATIVE_GATE = 0.15
 
 # Replay feature window for leakage-checked folds (see evals.splits).
 FEATURE_WINDOW = timedelta(days=7)
@@ -167,6 +192,11 @@ class ClassificationMetrics:
     brier_improvement: float
     brier_improvement_ci: tuple[float, float]
 
+    @property
+    def relative_improvement(self) -> float | None:
+        """Fraction of the baseline Brier removed; None if baseline is 0."""
+        return relative_brier_improvement(self.brier, self.baseline_brier)
+
 
 @dataclass(frozen=True)
 class CalibrationReport:
@@ -200,17 +230,26 @@ class SegmentMetrics:
 
 @dataclass(frozen=True)
 class ForecastEval:
-    """Scored WP2 forecasting pass (reported, never gated).
+    """Scored WP2 forecasting pass — Phase 5 go/no-go gates apply.
 
-    The flat-prior ``ForecastModel`` runs behind the feature flag over the
-    same facilities and labels as the assessor pass; its AUROC/Brier here
-    characterize the baseline estimator, they gate nothing.
+    The calibrated forecaster is fit on the training facilities' labeled
+    cases and scored on the held-out facilities the fit never saw. The
+    proposal's go/no-go gates (AUROC >= 0.80; Brier >= 15% better than the
+    flat-prior baseline, with the bootstrap improvement CI excluding zero)
+    apply to this held-out score. Synthetic-only: labels are
+    by-construction, so these numbers prove the calibration machinery, not
+    field performance.
     """
 
     model: str
+    train_facilities: int
+    eval_facilities: int
     cases: int
+    abstentions: int
     overall: ClassificationMetrics
     per_segment: dict[str, ClassificationMetrics]
+    calibration: CalibrationReport
+    per_segment_abstentions: dict[str, int]
 
 
 @dataclass(frozen=True)
@@ -268,9 +307,7 @@ def _merge_collectors(collectors: Sequence[_ScoreCollector]) -> _ScoreCollector:
         merged.attribute_mismatches.extend(collector.attribute_mismatches)
         merged.unresolved_rows += collector.unresolved_rows
         for reason, count in collector.unresolved_reasons.items():
-            merged.unresolved_reasons[reason] = (
-                merged.unresolved_reasons.get(reason, 0) + count
-            )
+            merged.unresolved_reasons[reason] = merged.unresolved_reasons.get(reason, 0) + count
         merged.exposure_cases += collector.exposure_cases
         merged.exposure_correct += collector.exposure_correct
         merged.exposure_mismatches.extend(collector.exposure_mismatches)
@@ -326,9 +363,7 @@ def check_topology_recovery(
     nodes = snapshot.json()["nodes"]
     # Inventory imports are namespaced INV-<asset_id> so parser-created nodes
     # can never collide with technician-entered keys.
-    recovered = {
-        str(node["node_key"]): node for node in nodes if node["node_type"] == "asset"
-    }
+    recovered = {str(node["node_key"]): node for node in nodes if node["node_type"] == "asset"}
     intended = {f"INV-{row.asset_id}": row for row in facility.clean_rows}
 
     collector.expected_nodes += len(intended)
@@ -339,13 +374,9 @@ def check_topology_recovery(
         row = intended[key]
         node = recovered[key]
         if node["name"] != row.name or node["location"] != row.location:
-            collector.attribute_mismatches.append(
-                f"{facility.facility_id}:{key} name/location"
-            )
+            collector.attribute_mismatches.append(f"{facility.facility_id}:{key} name/location")
         elif node["attributes"] != row.attributes:
-            collector.attribute_mismatches.append(
-                f"{facility.facility_id}:{key} attributes"
-            )
+            collector.attribute_mismatches.append(f"{facility.facility_id}:{key} attributes")
 
 
 def collect_case_scores(
@@ -392,10 +423,7 @@ def collect_case_scores(
     # exposure between services still fails the metric.
     keys = sorted(facility.expected_impacted)
     expected_order = [
-        float(
-            1000 * len(facility.expected_exposed[key])
-            + len(facility.expected_impacted[key])
-        )
+        float(1000 * len(facility.expected_exposed[key]) + len(facility.expected_impacted[key]))
         for key in keys
     ]
     actual_order = [float(scores[key]) for key in keys]
@@ -420,9 +448,7 @@ def _classification_metrics(
     def _delta(ps: Sequence[float], ys: Sequence[float]) -> float:
         return brier_flat_baseline(ys) - brier(ps, ys)
 
-    improvement_ci = bootstrap_ci(
-        probabilities, labels, _delta, rng, bootstrap_samples
-    )
+    improvement_ci = bootstrap_ci(probabilities, labels, _delta, rng, bootstrap_samples)
     return ClassificationMetrics(
         cases=len(labels),
         positives=sum(labels),
@@ -477,6 +503,15 @@ def _finalize_bundle(collector: _ScoreCollector, *, seed: int, samples: int) -> 
     )
 
 
+def _get_snapshot(client: TestClient, facility_id: str, version: int) -> dict[str, object]:
+    """Fetch one immutable graph version (the fit's read-only input)."""
+    response = client.get(f"/facilities/{facility_id}/graph?version={version}")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert isinstance(payload, dict)
+    return payload
+
+
 def run_forecast_pass(
     client: TestClient,
     corpus: Corpus,
@@ -484,60 +519,90 @@ def run_forecast_pass(
     *,
     seed: int,
     bootstrap_samples: int,
-) -> ForecastEval | None:
-    """Evaluate the flagged forecasting module against the same labels.
+) -> ForecastEval:
+    """Fit the calibrated forecaster on a facility-level holdout and score it.
 
-    Installs the flat-prior ``ForecastModel`` on the app for the pass and
-    restores whatever was there before. Each facility gets one additional
-    assessment pinned to its confirmed version; every asset's ``p_fault``
-    is scored against the by-construction single-fault label. Reported,
-    never gated.
+    Training cases come from the *training* facilities' snapshots (read-only
+    graph GETs) paired with by-construction labels — no assessment runs
+    during the fit. The fitted model is then installed on the app for one
+    extra assessment per *held-out* facility, and every emitted ``p_fault``
+    is scored against the same construction labels (AUROC, Brier vs the
+    flat-prior baseline with a paired-bootstrap improvement CI, calibration).
+    Abstained estimates carry the flat-prior fallback value, so abstention
+    can never score better than the baseline it defers to. Restores the
+    previous forecaster on the way out.
     """
-    # Fail fast (before mutating app state) if the corpus and app disagree.
-    facilities = list(corpus.facilities)
+    train_ids, eval_ids = train_eval_split(
+        [facility.facility_id for facility in corpus.facilities],
+        seed=seed,
+        eval_fraction=CANONICAL_EVAL_FRACTION,
+    )
+    facilities_by_id = {facility.facility_id: facility for facility in corpus.facilities}
     # httpx types TestClient.app as the raw ASGI callable; it is the FastAPI
     # instance, and the forecaster slot is where the flag resolution landed.
     app = cast(FastAPI, client.app)
     previous = app.state.forecaster
-    app.state.forecaster = FlatPriorForecastModel()
+
+    # Fit: read-only snapshot pulls paired with construction labels.
+    train_cases: list[CalibrationCase] = []
+    for facility_id in train_ids:
+        facility = facilities_by_id[facility_id]
+        snapshot = GraphSnapshotOut.model_validate(
+            _get_snapshot(client, facility_id, versions[facility_id])
+        )
+        for feature in asset_protection_features(snapshot):
+            train_cases.append(
+                CalibrationCase(
+                    facility_id=facility_id,
+                    status=feature.status,
+                    label=1 if facility.expected_exposed[feature.asset_key] else 0,
+                )
+            )
+    table = fit_calibration(train_cases, seed=seed, train_facilities=len(train_ids))
+
+    # Score: held-out facilities only, through the real assessment surface.
+    segment_cases: dict[str, list[tuple[int, float]]] = {segment: [] for segment in SEGMENTS}
+    segment_abstentions: dict[str, int] = {segment: 0 for segment in SEGMENTS}
+    app.state.forecaster = CalibratedForecastModel(table)
     try:
-        segment_scores: dict[str, tuple[list[int], list[float]]] = {
-            segment: ([], []) for segment in SEGMENTS
-        }
-        for facility in facilities:
+        for facility_id in eval_ids:
+            facility = facilities_by_id[facility_id]
             run = client.post(
-                f"/facilities/{facility.facility_id}/assessments",
+                f"/facilities/{facility_id}/assessments",
                 json={
                     "author": "eval_forecast_pass",
-                    "version_no": versions[facility.facility_id],
+                    "version_no": versions[facility_id],
                 },
             )
             assert run.status_code == 201, run.text
             report = run.json()
-            p_faults = {
-                str(item["asset_key"]): float(item["p_fault"])
-                for item in report["forecasts"]
-            }
-            labels, probabilities = segment_scores[facility.segment]
-            for key, expected in facility.expected_exposed.items():
-                assert key in p_faults, f"{facility.facility_id}:{key} has no forecast"
-                labels.append(1 if expected else 0)
-                probabilities.append(p_faults[key])
+            forecasts = {str(item["asset_key"]): item for item in report["forecasts"]}
+            cases = segment_cases[facility.segment]
+            for asset_key, expected in facility.expected_exposed.items():
+                item = forecasts.get(asset_key)
+                assert item is not None, f"{facility_id}:{asset_key} has no forecast"
+                label = 1 if expected else 0
+                cases.append((label, float(item["p_fault"])))
+                if item.get("status") == ForecastStatus.ABSTAINED.value:
+                    segment_abstentions[facility.segment] += 1
     finally:
         app.state.forecaster = previous
 
-    overall_labels: list[int] = []
-    overall_probabilities: list[float] = []
     per_segment: dict[str, ClassificationMetrics] = {}
-    for segment, (labels, probabilities) in segment_scores.items():
-        overall_labels.extend(labels)
-        overall_probabilities.extend(probabilities)
+    for segment in SEGMENTS:
+        cases = segment_cases[segment]
+        if not cases:
+            continue  # hand-shrunken corpora may leave a segment unscored
         per_segment[segment] = _classification_metrics(
-            labels,
-            probabilities,
+            [label for label, _ in cases],
+            [probability for _, probability in cases],
             seed=seed,
             bootstrap_samples=bootstrap_samples,
         )
+    overall_labels = [label for segment in SEGMENTS for label, _ in segment_cases[segment]]
+    overall_probabilities = [
+        probability for segment in SEGMENTS for _, probability in segment_cases[segment]
+    ]
     overall = _classification_metrics(
         overall_labels,
         overall_probabilities,
@@ -545,10 +610,18 @@ def run_forecast_pass(
         bootstrap_samples=bootstrap_samples,
     )
     return ForecastEval(
-        model=FlatPriorForecastModel.__name__,
+        model=CalibratedForecastModel.__name__,
+        train_facilities=len(train_ids),
+        eval_facilities=len(eval_ids),
         cases=len(overall_labels),
+        abstentions=sum(segment_abstentions.values()),
         overall=overall,
         per_segment=per_segment,
+        calibration=CalibrationReport(
+            bins=tuple(reliability_bins(overall_probabilities, overall_labels)),
+            ece=expected_calibration_error(overall_probabilities, overall_labels),
+        ),
+        per_segment_abstentions=segment_abstentions,
     )
 
 
@@ -573,13 +646,9 @@ def run_harness(client: TestClient, config: HarnessConfig | None = None) -> Harn
     per_segment = {
         segment: SegmentMetrics(
             segment=segment,
-            facilities=len(
-                [f for f in corpus.facilities if f.segment == segment]
-            ),
+            facilities=len([f for f in corpus.facilities if f.segment == segment]),
             fault_cases=len(collector.labels),
-            metrics=_finalize_bundle(
-                collector, seed=cfg.seed, samples=cfg.bootstrap_samples
-            ),
+            metrics=_finalize_bundle(collector, seed=cfg.seed, samples=cfg.bootstrap_samples),
         )
         for segment, collector in segment_collectors.items()
     }
@@ -627,6 +696,57 @@ class GateResult:
     name: str
     passed: bool
     detail: str
+
+
+def _forecast_gates(forecast: ForecastEval | None) -> list[GateResult]:
+    """WP2 go/no-go gates on the held-out forecast score (Phase 5).
+
+    A missing forecast pass is a gate *failure*, not a skip — the Phase 5
+    gates are merge-blocking, so silence would be a false pass. The Brier
+    gate needs both the relative-improvement threshold and the paired
+    bootstrap improvement interval excluding zero.
+    """
+    if forecast is None:
+        return [
+            GateResult(
+                "forecast_pass_ran",
+                False,
+                "forecast pass did not run — the WP2 go/no-go gates cannot be evaluated",
+            )
+        ]
+    relative = forecast.overall.relative_improvement
+    improvement_ci = forecast.overall.brier_improvement_ci
+    relative_text = f"{relative:+.1%}" if relative is not None else "n/a"
+    return [
+        GateResult(
+            "forecast_auroc",
+            forecast.overall.auroc >= AUROC_GATE,
+            f"holdout AUROC {forecast.overall.auroc:.3f} "
+            f"[{forecast.overall.auroc_ci[0]:.3f}, {forecast.overall.auroc_ci[1]:.3f}] "
+            f"over {forecast.cases} cases from {forecast.eval_facilities} held-out "
+            f"facilities (fit on {forecast.train_facilities}; gate {AUROC_GATE})",
+        ),
+        GateResult(
+            "forecast_brier_improvement",
+            relative is not None
+            and relative >= FORECAST_BRIER_RELATIVE_GATE
+            and improvement_ci[0] > 0.0,
+            f"holdout Brier {forecast.overall.brier:.4f} vs flat-prior baseline "
+            f"{forecast.overall.baseline_brier:.4f} — {relative_text} relative "
+            f"(gate >= {FORECAST_BRIER_RELATIVE_GATE:.0%}), improvement CI "
+            f"[{improvement_ci[0]:+.4f}, {improvement_ci[1]:+.4f}]; "
+            f"{forecast.abstentions} abstention(s) scored at the flat-prior fallback",
+        ),
+        GateResult(
+            "forecast_calibration",
+            sum(bucket.n for bucket in forecast.calibration.bins) == forecast.cases,
+            f"reliability table covers "
+            f"{sum(bucket.n for bucket in forecast.calibration.bins)}/{forecast.cases} "
+            f"holdout cases, ECE {forecast.calibration.ece:.3f} (reported, not gated); "
+            "synthetic-only — by-construction labels, proves the machinery, not "
+            "field performance",
+        ),
+    ]
 
 
 def evaluate_gates(results: HarnessResults) -> list[GateResult]:
@@ -681,6 +801,7 @@ def evaluate_gates(results: HarnessResults) -> list[GateResult]:
             "(reported, not gated: calibrated probabilities are a WP2 deliverable — "
             "the MVP asserts topological exposure, not calibrated risk)",
         ),
+        *_forecast_gates(results.forecast_eval),
         GateResult(
             "no_leakage",
             results.leakage.ok,
@@ -728,21 +849,18 @@ def evaluate_segment_gates(results: HarnessResults) -> list[GateResult]:
                 GateResult(
                     f"{prefix}exposure_correctness",
                     metrics.exposure.accuracy >= EXPOSURE_GATE,
-                    f"{metrics.exposure.correct}/{metrics.exposure.cases} "
-                    "exposure sets exact",
+                    f"{metrics.exposure.correct}/{metrics.exposure.cases} exposure sets exact",
                 ),
                 GateResult(
                     f"{prefix}spof_detection",
                     metrics.spof.recall >= SPOF_RECALL_GATE
                     and metrics.spof.false_positive_rate <= SPOF_FPR_GATE,
-                    f"recall {metrics.spof.recall:.3f}, "
-                    f"FPR {metrics.spof.false_positive_rate:.3f}",
+                    f"recall {metrics.spof.recall:.3f}, FPR {metrics.spof.false_positive_rate:.3f}",
                 ),
                 GateResult(
                     f"{prefix}ranking_agreement",
                     metrics.ranking.mean_tau >= RANKING_TAU_GATE,
-                    f"mean Spearman {metrics.ranking.mean_tau:.3f} "
-                    f"(gate {RANKING_TAU_GATE})",
+                    f"mean Spearman {metrics.ranking.mean_tau:.3f} (gate {RANKING_TAU_GATE})",
                 ),
                 GateResult(
                     f"{prefix}auroc",
@@ -761,6 +879,39 @@ def evaluate_segment_gates(results: HarnessResults) -> list[GateResult]:
                 ),
             ]
         )
+        forecast_metrics = (
+            results.forecast_eval.per_segment.get(segment)
+            if results.forecast_eval is not None
+            else None
+        )
+        if forecast_metrics is None:
+            # A missing forecast pass already fails the overall gates loudly;
+            # per-segment forecast gates only apply to scored segments.
+            continue
+        relative = forecast_metrics.relative_improvement
+        relative_text = f"{relative:+.1%}" if relative is not None else "n/a"
+        gates.extend(
+            [
+                GateResult(
+                    f"{prefix}forecast_auroc",
+                    forecast_metrics.auroc >= AUROC_GATE,
+                    f"holdout AUROC {forecast_metrics.auroc:.3f} "
+                    f"[{forecast_metrics.auroc_ci[0]:.3f}, "
+                    f"{forecast_metrics.auroc_ci[1]:.3f}] (gate {AUROC_GATE})",
+                ),
+                GateResult(
+                    f"{prefix}forecast_brier_improvement",
+                    relative is not None
+                    and relative >= FORECAST_BRIER_RELATIVE_GATE
+                    and forecast_metrics.brier_improvement_ci[0] > 0.0,
+                    f"holdout Brier {forecast_metrics.brier:.4f} vs baseline "
+                    f"{forecast_metrics.baseline_brier:.4f} — {relative_text} "
+                    f"relative (gate >= {FORECAST_BRIER_RELATIVE_GATE:.0%}), "
+                    f"improvement CI [{forecast_metrics.brier_improvement_ci[0]:+.4f}, "
+                    f"{forecast_metrics.brier_improvement_ci[1]:+.4f}]",
+                ),
+            ]
+        )
     return gates
 
 
@@ -775,6 +926,7 @@ def _classification_payload(metrics: ClassificationMetrics) -> dict[str, object]
         "baseline_brier": metrics.baseline_brier,
         "brier_improvement": metrics.brier_improvement,
         "brier_improvement_ci": list(metrics.brier_improvement_ci),
+        "brier_relative_improvement": metrics.relative_improvement,
     }
 
 
@@ -870,12 +1022,30 @@ def render_json(results: HarnessResults) -> dict[str, object]:
         if results.forecast_eval is None
         else {
             "model": results.forecast_eval.model,
+            "train_facilities": results.forecast_eval.train_facilities,
+            "eval_facilities": results.forecast_eval.eval_facilities,
             "cases": results.forecast_eval.cases,
-            "reported_not_gated": True,
+            "abstentions": results.forecast_eval.abstentions,
+            "synthetic_only": True,
+            "gated": True,
             "overall": _classification_payload(results.forecast_eval.overall),
             "per_segment": {
                 segment: _classification_payload(metrics)
                 for segment, metrics in results.forecast_eval.per_segment.items()
+            },
+            "per_segment_abstentions": results.forecast_eval.per_segment_abstentions,
+            "calibration": {
+                "ece": results.forecast_eval.calibration.ece,
+                "bins": [
+                    {
+                        "lower": bucket.lower,
+                        "upper": bucket.upper,
+                        "n": bucket.n,
+                        "mean_predicted": bucket.mean_predicted,
+                        "observed_rate": bucket.observed_rate,
+                    }
+                    for bucket in results.forecast_eval.calibration.bins
+                ],
             },
         },
         "no_leakage": {
@@ -964,28 +1134,45 @@ def render_markdown(results: HarnessResults) -> str:
         )
     if results.forecast_eval is not None:
         forecast = results.forecast_eval
+        relative = forecast.overall.relative_improvement
+        relative_text = f"{relative:+.1%}" if relative is not None else "n/a"
         lines.extend(
             [
                 "",
-                "## WP2 forecasting pass (feature-flagged; reported, not gated)",
+                "## WP2 forecasting pass (calibrated; Phase 5 go/no-go gates apply)",
                 "",
-                f"Model `{forecast.model}` over the same facilities and labels "
-                f"({forecast.cases} cases). Probability-bearing outputs stay "
-                "reported-not-gated until labeled data exists (locked testing plan);",
-                "forecasts are informational estimates — nothing executes on them.",
+                f"Model `{forecast.model}` — fitted Beta posteriors over protection "
+                f"cells, fit on {forecast.train_facilities} facilities' labeled cases "
+                f"and scored on the {forecast.eval_facilities} held-out facilities "
+                f"the fit never saw ({forecast.cases} cases; {forecast.abstentions} "
+                "abstention(s) scored at the flat-prior fallback).",
+                "Synthetic-only: labels are by-construction — these numbers prove",
+                "the calibration machinery, not field performance. Forecasts are",
+                "informational estimates; nothing executes on them.",
                 "",
-                "| Segment | AUROC | Brier | Baseline |",
-                "|---|---|---|---|",
+                "| Segment | AUROC | Brier | Baseline | Rel. improvement | Abstentions |",
+                "|---|---|---|---|---|---|",
             ]
         )
         for segment, forecast_metrics in forecast.per_segment.items():
+            seg_relative = forecast_metrics.relative_improvement
+            seg_relative_text = f"{seg_relative:+.1%}" if seg_relative is not None else "n/a"
             lines.append(
                 f"| {segment} | {forecast_metrics.auroc:.3f} | {forecast_metrics.brier:.3f} "
-                f"| {forecast_metrics.baseline_brier:.3f} |"
+                f"| {forecast_metrics.baseline_brier:.3f} | {seg_relative_text} "
+                f"| {forecast.per_segment_abstentions.get(segment, 0)} |"
             )
         lines.append(
             f"| **overall** | {forecast.overall.auroc:.3f} "
-            f"| {forecast.overall.brier:.3f} | {forecast.overall.baseline_brier:.3f} |"
+            f"| {forecast.overall.brier:.3f} | {forecast.overall.baseline_brier:.3f} "
+            f"| {relative_text} | {forecast.abstentions} |"
+        )
+        lines.extend(
+            [
+                "",
+                f"Holdout calibration: ECE {forecast.calibration.ece:.3f} "
+                "(forecast reliability table below).",
+            ]
         )
     lines.extend(
         [
@@ -1002,11 +1189,25 @@ def render_markdown(results: HarnessResults) -> str:
             f"| {bucket.mean_predicted if bucket.mean_predicted is not None else '—'} "
             f"| {bucket.observed_rate if bucket.observed_rate is not None else '—'} |"
         )
+    if results.forecast_eval is not None:
+        lines.extend(
+            [
+                "",
+                "### Forecast reliability table (holdout, synthetic)",
+                "",
+                "| Bin | n | Mean predicted | Observed rate |",
+                "|---|---|---|---|",
+            ]
+        )
+        for bucket in results.forecast_eval.calibration.bins:
+            lines.append(
+                f"| [{bucket.lower:.1f}, {bucket.upper:.1f}] | {bucket.n} "
+                f"| {bucket.mean_predicted if bucket.mean_predicted is not None else '—'} "
+                f"| {bucket.observed_rate if bucket.observed_rate is not None else '—'} |"
+            )
     lines.extend(["", "## Gates", "", "| Gate | Status | Detail |", "|---|---|---|"])
     for gate in gates:
-        lines.append(
-            f"| {gate.name} | {'PASS' if gate.passed else 'FAIL'} | {gate.detail} |"
-        )
+        lines.append(f"| {gate.name} | {'PASS' if gate.passed else 'FAIL'} | {gate.detail} |")
     if any(not gate.passed for gate in gates):
         lines.extend(["", "## Gate failures", ""])
         for gate in gates:

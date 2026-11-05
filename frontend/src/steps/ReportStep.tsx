@@ -86,10 +86,18 @@ function Forecasts({ forecasts }: { forecasts: RiskForecast[] }) {
               <td>
                 <code>{forecast.asset_key}</code>
               </td>
-              <td>{forecast.p_fault.toFixed(3)}</td>
-              <td>
-                [{forecast.lower.toFixed(3)}, {forecast.upper.toFixed(3)}]
-              </td>
+              {forecast.status === 'abstained' ? (
+                <td colSpan={2} className="note">
+                  abstained — {forecast.abstention_reason}
+                </td>
+              ) : (
+                <>
+                  <td>{forecast.p_fault.toFixed(3)}</td>
+                  <td>
+                    [{forecast.lower.toFixed(3)}, {forecast.upper.toFixed(3)}]
+                  </td>
+                </>
+              )}
               <td>{forecast.redundancy_class ?? '—'}</td>
               <td>{forecast.basis}</td>
             </tr>

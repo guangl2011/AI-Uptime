@@ -7,15 +7,19 @@ evidence-cited risk assessment with explicit abstention where data is
 insufficient. Nothing in this system writes to facility control systems:
 integrations are read-only, agents propose, humans execute.
 
-> **Phase 4 — market-sequence expansion landed:** the scanner flow (inventory →
+> **Phase 5 — calibrated WP2 forecast landed:** the scanner flow (inventory →
 > topology confirm → assessment report) works for **cold chain, AIDC, and
 > hospital** synthetic facilities with no per-facility code changes; the eval
 > harness gates every metric per segment and overall; hospital life-safety
-> isolation is a reportable finding; and WP2 risk-forecasting groundwork sits
-> behind a feature flag (default OFF, informational only, evaluated by the
-> same harness, never executed on). Governance posture unchanged: read-only
-> integrations, zero autonomous control, evidence-cited findings with explicit
-> abstention.
+> isolation is a reportable finding. WP2 is now a **calibrated forecast**
+> behind the feature flag (default OFF, informational only): posterior-mean
+> probabilities with uncertainty bounds and stated abstention on conflicting
+> or sparse evidence, fitted on a frozen canonical table and scored on a
+> facility-level holdout — AUROC ≥ 0.80 and ≥ 15% relative Brier improvement
+> vs the flat-prior baseline are **merge-blocking gates**, reported
+> synthetic-only and never executed on. Governance posture unchanged:
+> read-only integrations, zero autonomous control, evidence-cited findings
+> with explicit abstention.
 
 ## Quickstart
 
