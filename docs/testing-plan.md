@@ -170,6 +170,53 @@ physics-modeling trajectory (WP4). SPOF sets in traces are therefore
 state-conditional ("the surviving pump is a SPOF while its partner is
 down"), which is the intended behavior, not drift.
 
+## Simulation invariants (Sim M2)
+
+`make invariants` (`python -m evals.sim.invariant_sweep`, code under
+`evals/sim/invariants.py`) runs the plan's Category 3-4 invariants as
+mathematical properties over generated seeds — one facility per segment
+per seed, no expected outputs to wave off: a violation is a bug in the
+engine or the corpus, and the failure output carries the failing seed plus
+a minimal repro (regeneration recipe and the events to replay).
+
+Gates (zero tolerance, reported per invariant):
+
+- **Redundancy monotonicity** — adding redundancy (a standby member via
+  the N → N+1 → 2N ladder) never increases exposure: for the intact state
+  and every single-asset fault, the upgraded dead set is a subset of the
+  original's, and the standby itself never dies.
+- **Repair recovery** — a repair never re-exposes a dead service, and
+  repairing every event fault restores the intact graph exactly (no stale
+  exposure, no torn edges; upgrades persist, faults must not).
+- **Trace determinism** — the same seed regenerates the facility
+  identically and replays to an identical materialized trace.
+- **Replay folds** — the existing `evals.splits` discipline (LeakageError)
+  holds on the corpus replay cases: no post-fault event in the feature
+  window; the fault's work order and its repair inside the label window.
+- **Non-clairvoyance** — pre-repair trace steps are identical with and
+  without the future repair in the replay input.
+- **Recovery state** — the constructed interruption is visible in the
+  pre-repair state, and the post-repair state equals the intact baseline —
+  at the engine level, and through the real assessment API (the API
+  comparison keeps evidence claims and drops per-version provenance
+  pointers, which are re-issued by every commit by design).
+
+CI: the invariants run as Hypothesis property tests
+(`tests/evals/sim/test_invariants.py`) inside the existing pytest run on
+every PR and push to `main` — push CI runs the property seeds only, so a
+push stays under a few minutes. The full 1,000-seed sweep runs in the
+nightly workflow (`make invariants`), with `invariant-sweep.{md,json}`
+uploaded as the per-run artifact, same convention as eval and sim. The
+nightly run states the plan's seed-count gate in its own report.
+
+Honest semantics note: the invariants check the engine's own semantics —
+the corpus, the engine, and the replay cases share authors, so these are
+consistency properties, not independent field validation (the shared
+blind-spot caveat of art_non0bSFL carries). Generated corpora may contain
+parallel duplicate edges; they are benign for cascade closure and are
+excluded from load-shift candidates, which the engine defines on
+single-edge dependencies.
+
 ## Not yet implemented (later phases, per art_XaCiEWwo)
 
 - Historical replay on pilot data (WP4): the point where AUROC / Brier /

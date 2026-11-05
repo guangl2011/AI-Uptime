@@ -1,4 +1,4 @@
-.PHONY: demo seed eval sim test check install frontend-install clean
+.PHONY: demo seed eval sim invariants test check install frontend-install clean
 
 # The package lives under src/ and is installed editable into .venv; make
 # bootstrap the venv from pyproject.toml on first use so a fresh clone runs
@@ -40,6 +40,15 @@ eval: $(VENV)/bin/python
 # eval scores single-snapshot answers, sim scores traces and invariants.
 sim: $(VENV)/bin/python
 	$(PYTHON) -m evals.sim --output-dir eval-results/sim
+
+# Invariant sweep (evals/sim/invariant_sweep): the plan's 1,000-seed gate for
+# the Category 3-4 properties (monotonicity, repair recovery, determinism,
+# replay folds, non-clairvoyance, recovery state). Writes
+# invariant-sweep.{md,json} under eval-results/invariants/ (gitignored);
+# non-zero exit with the failing seed + repro when any gate fails. Nightly
+# cadence — push CI runs the Hypothesis property seeds via `make test`.
+invariants: $(VENV)/bin/python
+	$(PYTHON) -m evals.sim.invariant_sweep --output-dir eval-results/invariants
 
 frontend-install:
 	npm --prefix frontend ci --no-audit --no-fund --silent
