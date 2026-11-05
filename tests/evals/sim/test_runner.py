@@ -132,9 +132,12 @@ def test_corpus_sweep_on_reduced_corpus(tmp_path: Path) -> None:
     assert all(mismatches == 0 for _, mismatches in per_segment.values())
 
 
-def test_all_three_sequenced_scenarios_pass_via_real_api(tmp_path: Path) -> None:
+def test_all_shipped_scenarios_pass_via_real_api(tmp_path: Path) -> None:
+    """Every shipped sim scenario — M1 cascades and M3 what-if — passes."""
     client = _client(tmp_path)
-    for scenario in load_sim_scenarios():
+    scenarios = load_sim_scenarios()
+    assert len(scenarios) == 6
+    for scenario in scenarios:
         outcome = run_sim_scenario(client, scenario)
         assert outcome.passed, outcome.failures
 

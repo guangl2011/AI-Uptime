@@ -1,0 +1,284 @@
+{
+  "scenario_id": "sim-hospital-whatif-generator-and-medgas",
+  "title": "Hospital: what-if generator removal and med-gas manifold upgrade",
+  "description": "Counterfactual branch checks on the hospital baseline: removing the standby generator (one leg of the 2N site-source group) must lose no service but must make the utility feed a new single point of failure on the power-fed services — the delta adjudicates spofs_added; and upgrading the medical-gas manifold group to N+1 must remove the lone manifold's SPOF finding and flip the med-gas service's first-fault tolerance (both group members live). The med-gas manifold is modeled power-self-contained, like the sim scenario files' mechanical plant, so the power path's SPOF set is untouched by the med-gas upgrade. Adjudicates Category 5 (what-if consistency) for the hospital segment.",
+  "market": "hospital",
+  "facility_id": "sim-hospital-whatif",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-hospital-whatif-generator-and-medgas",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Life-safety generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Life-safety automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "MEDGAS-1",
+        "node_type": "asset",
+        "asset_type": "med_gas_manifold",
+        "name": "Med-gas manifold 1 (duty)",
+        "location": "med-gas room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "OR-AH-1",
+        "node_type": "asset",
+        "asset_type": "air_handler",
+        "name": "OR air handler 1 (duty)",
+        "location": "OR suite",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-LS-POWER",
+        "node_type": "service",
+        "name": "Life-safety power",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-MEDGAS",
+        "node_type": "service",
+        "name": "Medical gas delivery",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "node_key": "SVC-OR-AIR",
+        "node_type": "service",
+        "name": "OR suite ventilation",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "SVC-LS-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "from_node": "MEDGAS-1",
+        "to_node": "SVC-MEDGAS",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "member_group": "med-gas-plants-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "from_node": "SVC-LS-POWER",
+        "to_node": "OR-AH-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      },
+      {
+        "from_node": "OR-AH-1",
+        "to_node": "SVC-OR-AIR",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-whatif-generator-and-medgas"
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "event": "what_if",
+      "label": "remove-generator",
+      "intervention": {
+        "type": "remove_asset",
+        "asset_key": "GEN-1"
+      },
+      "expected_delta": {
+        "lost_services": [],
+        "restored_services": [],
+        "service_spofs_added": {
+          "SVC-LS-POWER": ["UTILITY-1"],
+          "SVC-OR-AIR": ["UTILITY-1"]
+        },
+        "service_spofs_removed": {},
+        "service_first_fault_tolerated": {},
+        "expect_spof_path_abstention": null
+      }
+    },
+    {
+      "event": "what_if",
+      "label": "upgrade-med-gas-plants",
+      "intervention": {
+        "type": "upgrade_redundancy",
+        "member_group": "med-gas-plants-1",
+        "redundancy_config": "N+1",
+        "standby_node": {
+          "node_key": "MEDGAS-2",
+          "node_type": "asset",
+          "asset_type": "med_gas_manifold",
+          "name": "Med-gas manifold 2 (standby)",
+          "location": "med-gas room",
+          "attributes": {},
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-hospital-whatif-generator-and-medgas:standby"
+          }
+        },
+        "standby_edge": {
+          "from_node": "MEDGAS-2",
+          "to_node": "SVC-MEDGAS",
+          "failure_mode": "mechanical_failure",
+          "redundancy_config": "N+1",
+          "member_group": "med-gas-plants-1",
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-hospital-whatif-generator-and-medgas:standby"
+          }
+        }
+      },
+      "expected_delta": {
+        "lost_services": [],
+        "restored_services": [],
+        "service_spofs_added": {},
+        "service_spofs_removed": {
+          "SVC-MEDGAS": ["MEDGAS-1"]
+        },
+        "service_first_fault_tolerated": {
+          "SVC-MEDGAS": true
+        },
+        "expect_spof_path_abstention": false
+      }
+    }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-LS-POWER": false,
+        "SVC-MEDGAS": false,
+        "SVC-OR-AIR": false
+      },
+      "service_spofs": {
+        "SVC-LS-POWER": ["ATS-1"],
+        "SVC-MEDGAS": ["MEDGAS-1"],
+        "SVC-OR-AIR": ["ATS-1", "OR-AH-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-LS-POWER": false,
+        "SVC-MEDGAS": false,
+        "SVC-OR-AIR": false
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-LS-POWER": false,
+        "SVC-MEDGAS": false,
+        "SVC-OR-AIR": false
+      }
+    }
+  ],
+  "adjudicated_by": "Construction intent (generator removal loses nothing but exposes the utility feed on the power-fed services; the med-gas upgrade removes the lone manifold's SPOF finding with both members live; reviewer: founder)"
+}

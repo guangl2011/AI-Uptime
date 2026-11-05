@@ -23,8 +23,15 @@ Semantics (one model, matching the corpus adjudication and the assessor):
   faulted set). ``repair`` simply leaves the faulted set — restoration
   flows out of recomputation, so repair order is adjudicable step by step.
 
-Events (the M1 union; what-if markers join it in M3 as a new kind):
-fault, repair, redundancy_change, load_shift.
+Events (the M1 union): fault, repair, redundancy_change, load_shift.
+
+What-if interventions (M3) ride the same pure-transition discipline but on
+branch states, never the timeline: ``apply_intervention`` applies one
+counterfactual — ``RemoveAssetEvent`` (the node leaves the facility and its
+loss cascades like a fault, but the snapshot omits the node itself) or a
+``RedundancyChangeEvent`` (the N → N+1 upgrade: reclassify plus a standby
+member, the exact timeline transition). Branch states carry the ``removed``
+set so the cascade closure stays a total function of the state.
 """
 
 from __future__ import annotations
@@ -186,7 +193,27 @@ class LoadShiftEvent:
     to_node: str
 
 
+@dataclass(frozen=True)
+class RemoveAssetEvent:
+    """What-if component removal: the asset leaves the facility entirely.
+
+    Counterfactual semantics, not a fault: the materialized snapshot omits
+    the node (the facility is the facility *without this component*), while
+    the cascade closure propagates its loss exactly as a fault's — the
+    "what breaks if this dies" answer. Branch-only: the timeline union has
+    no removal (the plan's event list), so ``apply_event`` rejects it; only
+    ``apply_intervention`` accepts it.
+    """
+
+    asset_key: str
+
+
 SimEvent = FaultEvent | RepairEvent | RedundancyChangeEvent | LoadShiftEvent
+
+# Counterfactual interventions (M3): a removal, or the N → N+1 upgrade —
+# reusing the timeline's RedundancyChangeEvent wholesale so a what-if upgrade
+# is the same transition a scenario's timeline upgrade would be.
+WhatIfIntervention = RemoveAssetEvent | RedundancyChangeEvent
 
 
 def describe_event(event: SimEvent) -> str:
@@ -203,6 +230,47 @@ def describe_event(event: SimEvent) -> str:
     raise SimEventError(f"unrecognized event {event!r}")  # pragma: no cover
 
 
+def describe_intervention(intervention: WhatIfIntervention) -> str:
+    """Stable one-line description of a counterfactual intervention."""
+    match intervention:
+        case RemoveAssetEvent(asset_key=key):
+            return f"remove {key}"
+        case RedundancyChangeEvent(member_group=group, redundancy_config=config):
+            return f"upgrade {group} -> {config}"
+    raise SimEventError(f"unrecognized intervention {intervention!r}")  # pragma: no cover
+
+
+def apply_intervention(state: SimState, intervention: WhatIfIntervention) -> SimState:
+    """Apply one what-if intervention to a branch copy of ``state``.
+
+    Upgrades are the timeline's own transition (a branch upgrade must be
+    exactly what the same event on the timeline would be); removals are
+    counterfactual-only.
+    """
+    match intervention:
+        case RemoveAssetEvent(asset_key=key):
+            return _apply_remove_asset(state, key)
+        case RedundancyChangeEvent():
+            return apply_event(state, intervention)
+    raise SimEventError(f"unrecognized intervention {intervention!r}")  # pragma: no cover
+
+
+def _apply_remove_asset(state: SimState, key: str) -> SimState:
+    node = state.topology.nodes.get(key)
+    if node is None:
+        raise SimEventError(f"remove targets unknown node {key!r}")
+    if node.node_type != NODE_TYPE_ASSET:
+        raise SimEventError(
+            f"remove targets {key!r}, which is a service — what-if removal takes assets"
+        )
+    if key in state.removed:
+        raise SimEventError(f"asset {key} is already removed")
+    # The working topology keeps the node and its edges so the cascade
+    # closure can propagate the loss downstream; materialization is what
+    # omits the node. ``removed`` rides the state for exactly that reason.
+    return SimState(topology=state.topology, faulted=state.faulted, removed=state.removed | {key})
+
+
 # ---------------------------------------------------------------------------
 # State transitions
 # ---------------------------------------------------------------------------
@@ -210,10 +278,16 @@ def describe_event(event: SimEvent) -> str:
 
 @dataclass(frozen=True)
 class SimState:
-    """One simulation state: the working topology plus faulted asset keys."""
+    """One simulation state: the working topology plus faulted asset keys.
+
+    ``removed`` carries what-if removals (M3, branch states only): removed
+    nodes stay in the working topology so the closure sees their edges, and
+    materialization omits them. The timeline never sets it.
+    """
 
     topology: Topology
     faulted: frozenset[str]
+    removed: frozenset[str] = frozenset()
 
 
 def initial_state(topology: Topology) -> SimState:
@@ -390,12 +464,15 @@ def _apply_load_shift(state: SimState, consumer: str, from_node: str, to_node: s
 
 
 def dead_nodes(state: SimState) -> frozenset[str]:
-    """The dead set: faulted nodes plus everything their loss cascades to.
+    """The dead set: faulted and removed nodes plus everything their loss
+    cascades to.
 
     Least fixpoint — a live node dies when a supplier edge's provider is
     dead and that edge cannot absorb (no live sibling in its redundant
-    group, or the edge declares N/none). Iterating in sorted key order
-    keeps the fixpoint deterministic regardless of set hashing.
+    group, or the edge declares N/none). Removed nodes seed the closure so
+    a what-if removal's loss cascades exactly like a fault's. Iterating in
+    sorted key order keeps the fixpoint deterministic regardless of set
+    hashing.
     """
     incoming: dict[str, list[EdgeSpec]] = {}
     members: dict[tuple[str, str], set[str]] = {}
@@ -405,7 +482,7 @@ def dead_nodes(state: SimState) -> frozenset[str]:
             group_key = (edge.to_node, edge.member_group)
             members.setdefault(group_key, set()).add(edge.from_node)
 
-    dead = set(state.faulted)
+    dead = set(state.faulted) | set(state.removed)
     changed = True
     while changed:
         changed = False
@@ -442,16 +519,23 @@ def materialize(
 ) -> dict[str, object]:
     """Render the state as a GraphVersionIn payload for the real API.
 
-    Every node is kept; every edge touching a dead node is dropped, so the
-    committed snapshot shows the live supply structure exactly: dead
-    services arrive isolated (named by the assessor's unserved_service
-    finding), dead assets stay visible but path-less, and surviving group
-    members' consumers degrade in the report.
+    ``removed`` nodes are omitted outright (the counterfactual facility is
+    the facility without that component); every other node is kept, and
+    every edge touching a dead node is dropped, so the committed snapshot
+    shows the live supply structure exactly: dead services arrive isolated
+    (named by the assessor's unserved_service finding), dead assets stay
+    visible but path-less, and surviving group members' consumers degrade
+    in the report.
     """
-    nodes = [state.topology.nodes[key].raw for key in sorted(state.topology.nodes)]
+    nodes = [
+        state.topology.nodes[key].raw
+        for key in sorted(state.topology.nodes)
+        if key not in state.removed
+    ]
+    gone = dead | state.removed
     edges = [
         edge.raw
         for edge in state.topology.edges
-        if edge.from_node not in dead and edge.to_node not in dead
+        if edge.from_node not in gone and edge.to_node not in gone
     ]
     return {"author": author, "notes": notes, "nodes": nodes, "edges": edges}

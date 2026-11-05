@@ -130,8 +130,8 @@ corpus — it drives the real assessment API and writes nothing outside its
 own throwaway databases and report artifacts. It scores *traces*, not
 single snapshots: ordered fault / repair / redundancy-change / load-shift
 events, with the full assessment state recorded at every step. What-if
-markers are M3 scope; the event union already names them so they can be
-added without a format change.
+markers arrived in M3 (see "What-if mode" below); the event union
+already named them, so they were added without a format change.
 
 Gates (reported per segment, same convention as the eval report):
 
@@ -216,6 +216,52 @@ blind-spot caveat of art_non0bSFL carries). Generated corpora may contain
 parallel duplicate edges; they are benign for cascade closure and are
 excluded from load-shift candidates, which the engine defines on
 single-edge dependencies.
+
+## What-if mode (Sim M3)
+
+Category 5's counterfactual surface. The sequenced-scenario DSL gains
+`what_if` markers — `remove_asset` (a component is deleted from the
+graph) or `upgrade_redundancy` (a component's redundancy class moves up
+the N → N+1 → 2N ladder, introducing a standby when needed). A marker is
+not a timeline event: it occupies a trace step that re-assesses the
+*unchanged* state, while the counterfactual branch materializes the
+intervention separately and re-assesses through the same real API
+surface. Nothing in the branch writes anywhere — the read-only posture
+holds for counterfactuals exactly as for traces.
+
+Gates (both merge-blocking inside `make sim`):
+
+- **`whatif_deltas`** — the observed delta between the baseline report
+  and the branch report (lost/restored services, SPOFs added/removed,
+  first-fault-tolerance changes) must equal the adjudicated
+  `expected_delta` exactly, on every shipped what-if case per segment.
+  A field the adjudication does not declare fails the gate; so does a
+  declared field the assessor does not produce.
+- **`whatif_spof_path`** — for upgrade markers, any single point of
+  failure the baseline found on the upgraded path must be *removed* by
+  the upgrade (the structural claim an N → N+1 upgrade makes), or the
+  runner must abstain with a stated reason. Abstention is the honest
+  answer when the verdict is structurally undecidable on that state —
+  for example, when the primary is already faulted and fewer than two
+  live members remain. A surviving SPOF without abstention is the
+  silent wrong answer this gate exists to catch.
+
+Marker purity and counterfactual monotonicity are checked as a matter
+of course: the marker step's report must equal the previous step's byte
+for byte (minus volatile fields), and the `whatif_counterfactual`
+invariant (Sim M2 sweep) proves upgrades never increase exposure and
+removals cascade exactly like the equivalent fault. Constructed what-if
+cases run inside the existing pytest run; the sim report gains a
+Category 5 section (deltas and SPOF-path verdicts per marker) in the
+same nightly artifact — no new workflow, no new nightly budget.
+
+Honest semantics note: a what-if delta validates the graph semantics —
+that the assessor's answer moves exactly as the dependency graph says
+it should. It is not a validated predictor of facility outcomes; that
+claim waits for pilot replay (WP4). The abstention path exists because
+state-conditional redundancy can make a path's verdict genuinely
+undecidable at the binary-state layer (transfer timing and
+ride-through stay out of scope, per the M1 note above).
 
 ## Not yet implemented (later phases, per art_XaCiEWwo)
 
