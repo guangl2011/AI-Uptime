@@ -1,0 +1,402 @@
+{
+  "scenario_id": "sim-aidc-whatif-chiller-cascade",
+  "title": "AIDC: what-if chiller upgrade, CDU removal, upgrade over a dead primary",
+  "description": "Counterfactual branch checks on the AIDC baseline: upgrading the single chiller group to N+1 (intact facility) must remove the chiller's SPOF finding from both chilled-water services and flip the chilled-water service's first-fault tolerance; removing the CDU must lose the cooling service exactly as its fault cascade does while the rack stays power-fed; and upgrading the same chiller group while the primary is already faulted must restore the lost services but abstain from the SPOF-path verdict — the counterfactual snapshot has one live group member, so the lone standby is itself a single point of failure and the verdict is stated as an abstention rather than asserted. Adjudicates Category 5 (what-if consistency, including the abstention path) for the AIDC segment.",
+  "market": "aidc",
+  "facility_id": "sim-aidc-whatif",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-aidc-whatif-chiller-cascade",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "UPS-1",
+        "node_type": "asset",
+        "asset_type": "ups",
+        "name": "UPS 1",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "CH-1",
+        "node_type": "asset",
+        "asset_type": "chiller",
+        "name": "Chiller 1",
+        "location": "plant yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "CDU-1",
+        "node_type": "asset",
+        "asset_type": "cdu",
+        "name": "Coolant distribution unit 1",
+        "location": "white space",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "it_rack",
+        "name": "IT rack row 1",
+        "location": "white space",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "SVC-CHW",
+        "node_type": "service",
+        "name": "Chilled water supply",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "node_key": "SVC-COOLING-0",
+        "node_type": "service",
+        "name": "Rack row 1 cooling",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "UPS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "UPS-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "CH-1",
+        "to_node": "SVC-CHW",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "member_group": "chw-chillers-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "SVC-CHW",
+        "to_node": "CDU-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "CDU-1",
+        "to_node": "SVC-COOLING-0",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "SVC-COOLING-0",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-whatif-chiller-cascade"
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "event": "what_if",
+      "label": "upgrade-chillers",
+      "intervention": {
+        "type": "upgrade_redundancy",
+        "member_group": "chw-chillers-1",
+        "redundancy_config": "N+1",
+        "standby_node": {
+          "node_key": "CH-1-SB",
+          "node_type": "asset",
+          "asset_type": "chiller",
+          "name": "Chiller 1 (standby)",
+          "location": "plant yard",
+          "attributes": {},
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-aidc-whatif-chiller-cascade:standby"
+          }
+        },
+        "standby_edge": {
+          "from_node": "CH-1-SB",
+          "to_node": "SVC-CHW",
+          "failure_mode": "mechanical_failure",
+          "redundancy_config": "N+1",
+          "member_group": "chw-chillers-1",
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-aidc-whatif-chiller-cascade:standby"
+          }
+        }
+      },
+      "expected_delta": {
+        "lost_services": [],
+        "restored_services": [],
+        "service_spofs_added": {},
+        "service_spofs_removed": {
+          "SVC-CHW": ["CH-1"],
+          "SVC-COOLING-0": ["CH-1"]
+        },
+        "service_first_fault_tolerated": {
+          "SVC-CHW": true
+        },
+        "expect_spof_path_abstention": false
+      }
+    },
+    {
+      "event": "what_if",
+      "label": "remove-cdu",
+      "intervention": {
+        "type": "remove_asset",
+        "asset_key": "CDU-1"
+      },
+      "expected_delta": {
+        "lost_services": ["SVC-COOLING-0"],
+        "restored_services": [],
+        "service_spofs_added": {},
+        "service_spofs_removed": {},
+        "service_first_fault_tolerated": {},
+        "expect_spof_path_abstention": null
+      }
+    },
+    { "event": "fault", "asset_key": "CH-1" },
+    {
+      "event": "what_if",
+      "label": "upgrade-chillers-while-dead",
+      "intervention": {
+        "type": "upgrade_redundancy",
+        "member_group": "chw-chillers-1",
+        "redundancy_config": "N+1",
+        "standby_node": {
+          "node_key": "CH-1-SB",
+          "node_type": "asset",
+          "asset_type": "chiller",
+          "name": "Chiller 1 (standby)",
+          "location": "plant yard",
+          "attributes": {},
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-aidc-whatif-chiller-cascade:standby"
+          }
+        },
+        "standby_edge": {
+          "from_node": "CH-1-SB",
+          "to_node": "SVC-CHW",
+          "failure_mode": "mechanical_failure",
+          "redundancy_config": "N+1",
+          "member_group": "chw-chillers-1",
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-aidc-whatif-chiller-cascade:standby"
+          }
+        }
+      },
+      "expected_delta": {
+        "lost_services": [],
+        "restored_services": ["SVC-CHW", "SVC-COOLING-0"],
+        "service_spofs_added": {},
+        "service_spofs_removed": {},
+        "service_first_fault_tolerated": {},
+        "expect_spof_path_abstention": true
+      }
+    }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-CHW": false,
+        "SVC-COOLING-0": false
+      },
+      "service_spofs": {
+        "SVC-POWER": ["ATS-1", "UPS-1"],
+        "SVC-CHW": ["CH-1"],
+        "SVC-COOLING-0": ["CDU-1", "CH-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-CHW": false,
+        "SVC-COOLING-0": false
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-CHW": false,
+        "SVC-COOLING-0": false
+      }
+    },
+    {
+      "step": 3,
+      "lost_services": ["SVC-CHW", "SVC-COOLING-0"],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-CHW": false,
+        "SVC-COOLING-0": false
+      }
+    },
+    {
+      "step": 4,
+      "lost_services": ["SVC-CHW", "SVC-COOLING-0"],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-CHW": false,
+        "SVC-COOLING-0": false
+      }
+    }
+  ],
+  "adjudicated_by": "Construction intent (intact upgrade removes the chiller SPOF and flips chilled-water first-fault tolerance; CDU removal cascades to the cooling service only; the upgrade over a dead primary restores service but abstains — the snapshot's lone live standby is itself a SPOF; reviewer: founder)"
+}

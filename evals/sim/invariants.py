@@ -30,6 +30,12 @@ Category 4 — recovery state on replay folds, reusing the existing
   except for the pinned version, while the constructed interruption is
   visible in the pre-repair state.
 
+Category 3 over what-if interventions (M3, ``whatif_counterfactual``) —
+the same property discipline applied to the counterfactual branches:
+upgrades applied to any seeded state never increase exposure and never kill
+the standby; a removal's cascade equals the same asset's fault cascade; and
+every branch payload replays identically.
+
 Every violation carries the failing seed and a minimal repro (how to
 regenerate the facility and which events to replay) — a repro case ships
 with the failure, per the plan's CI rule.
@@ -53,14 +59,18 @@ from evals.sim.engine import (
     FaultEvent,
     LoadShiftEvent,
     RedundancyChangeEvent,
+    RemoveAssetEvent,
     RepairEvent,
     SimEvent,
     SimEventError,
     SimState,
     Topology,
+    WhatIfIntervention,
     apply_event,
+    apply_intervention,
     dead_nodes,
     describe_event,
+    describe_intervention,
     initial_state,
     materialize,
 )
@@ -86,6 +96,7 @@ INVARIANT_NAMES: tuple[str, ...] = (
     "replay_no_leakage",
     "replay_no_clairvoyance",
     "recovery_state",
+    "whatif_counterfactual",
 )
 
 # Tolerance ladder: upgrade targets per current config, each strictly
@@ -516,6 +527,189 @@ def check_trace_determinism(facility: FacilityCorpus, seed: int) -> InvariantRes
             )
         )
     return InvariantResult("trace_determinism", checks, tuple(violations))
+
+
+# ---------------------------------------------------------------------------
+# Category 3 over what-if interventions (M3): counterfactual properties
+# ---------------------------------------------------------------------------
+
+
+def _seeded_interventions(
+    facility: FacilityCorpus, seed: int
+) -> tuple[SimState, tuple[WhatIfIntervention, ...]]:
+    """The seeded post-sequence state plus its counterfactual interventions.
+
+    Same RNG discipline as ``seeded_events`` (``random.Random`` over a
+    namespaced string seed): replay the seeded event sequence, then derive
+    one upgrade of a random upgradeable group (random target) and up to two
+    removals of live assets. Branches apply these to the post-sequence
+    state — never the timeline, never the intact baseline alone.
+    """
+    rng = random.Random(f"{facility.facility_id}:whatif:{seed}")
+    topology = Topology.from_payload(facility.graph)
+    state = initial_state(topology)
+    for event in seeded_events(facility, seed):
+        state = apply_event(state, event)
+    interventions: list[WhatIfIntervention] = []
+    groups = upgradeable_groups(state.topology)
+    if groups:
+        group, current = rng.choice(groups)
+        interventions.append(
+            build_upgrade(state.topology, group, rng.choice(UPGRADE_TARGETS[current]))
+        )
+    live_assets = sorted(
+        key
+        for key, spec in state.topology.nodes.items()
+        if spec.node_type == NODE_TYPE_ASSET and key not in state.faulted
+    )
+    for key in rng.sample(live_assets, min(2, len(live_assets))):
+        interventions.append(RemoveAssetEvent(asset_key=key))
+    return state, tuple(interventions)
+
+
+def _whatif_repro(
+    facility: FacilityCorpus, seed: int, intervention: WhatIfIntervention
+) -> str:
+    """Minimal repro for a what-if violation: the seeded state, then the
+    intervention, in DSL-style JSON (removals are what_if markers)."""
+    base = repro_recipe(facility, seed, ())
+    if isinstance(intervention, RemoveAssetEvent):
+        ix_json = {"event": "what_if", "type": "remove_asset", "asset_key": intervention.asset_key}
+    else:
+        ix_json = {
+            "event": "what_if",
+            "type": "upgrade_redundancy",
+            "member_group": intervention.member_group,
+            "redundancy_config": intervention.redundancy_config,
+        }
+    return f"{base}; then apply what-if intervention: {json.dumps(ix_json, sort_keys=True)}"
+
+
+def check_whatif_counterfactual(facility: FacilityCorpus, seed: int) -> InvariantResult:
+    """Category 3 properties over what-if interventions (M3).
+
+    From the seeded post-sequence state (its own fault set and any seeded
+    upgrades included), every intervention applies on a branch:
+
+    - an upgrade's counterfactual dead set is a subset of the baseline's —
+      from the state itself and from every single additional fault on top —
+      and the standby never dies (monotonicity, multi-fault states);
+    - a removal's dead set equals the same asset's fault cascade (the
+      counterfactual loss propagates exactly like a fault's);
+    - every branch's materialized snapshot replays identically (seeded and
+      replayable, as the Category 5 runner gates require).
+    """
+    violations: list[InvariantViolation] = []
+    checks = 0
+    state, interventions = _seeded_interventions(facility, seed)
+    base_dead = dead_nodes(state)
+    node_keys = frozenset(state.topology.nodes)
+
+    additional_faults = [
+        frozenset({key})
+        for key in sorted(state.topology.nodes)
+        if key not in state.faulted and state.topology.nodes[key].node_type == NODE_TYPE_ASSET
+    ]
+
+    for intervention in interventions:
+        cf_state = apply_intervention(state, intervention)
+        cf_dead = dead_nodes(cf_state)
+        repro = _whatif_repro(facility, seed, intervention)
+
+        if isinstance(intervention, RedundancyChangeEvent):
+            standby_key = str(intervention.standby_node["node_key"])
+            gained = sorted((cf_dead & node_keys) - base_dead)
+            checks += 1
+            if gained or standby_key in cf_dead:
+                violations.append(
+                    InvariantViolation(
+                        invariant="whatif_counterfactual",
+                        seed=seed,
+                        segment=facility.segment,
+                        facility_id=facility.facility_id,
+                        detail=(
+                            f"what-if upgrade {describe_intervention(intervention)} "
+                            f"(standby {standby_key}) from the seeded state: dead set "
+                            f"grew by {gained} (before {sorted(base_dead)}, "
+                            f"after {sorted(cf_dead)})"
+                        ),
+                        repro=repro,
+                    )
+                )
+            for extra in additional_faults:
+                faulted = state.faulted | extra
+                before = dead_nodes(SimState(state.topology, faulted))
+                after = dead_nodes(SimState(cf_state.topology, faulted))
+                checks += 1
+                gained = sorted((after & node_keys) - before)
+                if gained or standby_key in after:
+                    violations.append(
+                        InvariantViolation(
+                            invariant="whatif_counterfactual",
+                            seed=seed,
+                            segment=facility.segment,
+                            facility_id=facility.facility_id,
+                            detail=(
+                                f"what-if upgrade {describe_intervention(intervention)} with "
+                                f"faulted {sorted(faulted)}: dead set grew by {gained} "
+                                f"(before {sorted(before)}, after {sorted(after)})"
+                            ),
+                            repro=repro,
+                        )
+                    )
+
+        if isinstance(intervention, RemoveAssetEvent):
+            faulted_with_key = state.faulted | {intervention.asset_key}
+            fault_equivalent = dead_nodes(SimState(state.topology, faulted_with_key))
+            checks += 1
+            if cf_dead != fault_equivalent:
+                violations.append(
+                    InvariantViolation(
+                        invariant="whatif_counterfactual",
+                        seed=seed,
+                        segment=facility.segment,
+                        facility_id=facility.facility_id,
+                        detail=(
+                            f"what-if removal of {intervention.asset_key}: dead set "
+                            f"{sorted(cf_dead)} differs from the same asset's fault "
+                            f"cascade {sorted(fault_equivalent)}"
+                        ),
+                        repro=repro,
+                    )
+                )
+
+        # Seeded and replayable: the branch materialization is a pure
+        # function of (state, intervention) — two renders are identical.
+        checks += 1
+        cf_dead_two = dead_nodes(apply_intervention(state, intervention))
+        first_payload = materialize(
+            cf_state,
+            cf_dead,
+            author=SIM_AUTHOR,
+            notes="whatif determinism probe",
+        )
+        second_payload = materialize(
+            cf_state,
+            cf_dead_two,
+            author=SIM_AUTHOR,
+            notes="whatif determinism probe",
+        )
+        if _graph(first_payload) != _graph(second_payload):
+            violations.append(
+                InvariantViolation(
+                    invariant="whatif_counterfactual",
+                    seed=seed,
+                    segment=facility.segment,
+                    facility_id=facility.facility_id,
+                    detail=(
+                        f"what-if {describe_intervention(intervention)}: two same-seed "
+                        "branch materializations differ"
+                    ),
+                    repro=repro,
+                )
+            )
+
+    return InvariantResult("whatif_counterfactual", checks, tuple(violations))
 
 
 # ---------------------------------------------------------------------------

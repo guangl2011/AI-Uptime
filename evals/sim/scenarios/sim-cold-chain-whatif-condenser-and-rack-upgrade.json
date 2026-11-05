@@ -1,0 +1,346 @@
+{
+  "scenario_id": "sim-cold-chain-whatif-condenser-and-rack-upgrade",
+  "title": "Cold chain: what-if condenser removal and rack upgrade",
+  "description": "Counterfactual branch checks on the cold-chain baseline: a what-if upgrade of the rack compressor group to N+1 must remove the lone compressor's SPOF finding (structural verdict established: two live members), and a what-if removal of the condenser must lose the refrigeration service exactly as its fault cascade does while the cold room stays fed by facility power. Adjudicates Category 5 (what-if consistency) for the cold-chain beachhead; the timeline itself is never advanced by a marker.",
+  "market": "cold_chain",
+  "facility_id": "sim-cold-chain-whatif",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-cold-chain-whatif-condenser-and-rack-upgrade",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "Main PDU",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "refrigeration_rack",
+        "name": "Compressor rack 1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "COMP-1-1",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "COND-1",
+        "node_type": "asset",
+        "asset_type": "condenser",
+        "name": "Condenser 1",
+        "location": "roof",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "CR-0",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 0",
+        "location": "freezer wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-0",
+        "node_type": "service",
+        "name": "Cold Room 0 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "COMP-1-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "member_group": "rack_compressors-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "COND-1",
+        "to_node": "RACK-1",
+        "failure_mode": "refrigerant_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-0",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "SVC-REFRIG-0",
+        "to_node": "CR-0",
+        "failure_mode": "refrigerant_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-0",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade"
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "event": "what_if",
+      "label": "upgrade-rack-compressors",
+      "intervention": {
+        "type": "upgrade_redundancy",
+        "member_group": "rack_compressors-1",
+        "redundancy_config": "N+1",
+        "standby_node": {
+          "node_key": "COMP-1-2",
+          "node_type": "asset",
+          "asset_type": "compressor",
+          "name": "Compressor 1-2 (standby)",
+          "location": "machine room",
+          "attributes": {},
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade:standby"
+          }
+        },
+        "standby_edge": {
+          "from_node": "COMP-1-2",
+          "to_node": "RACK-1",
+          "failure_mode": "mechanical_failure",
+          "redundancy_config": "N+1",
+          "member_group": "rack_compressors-1",
+          "provenance": {
+            "source_kind": "technician_entry",
+            "source_system": "eval_sim_scenarios",
+            "source_ref": "sim:sim-cold-chain-whatif-condenser-and-rack-upgrade:standby"
+          }
+        }
+      },
+      "expected_delta": {
+        "lost_services": [],
+        "restored_services": [],
+        "service_spofs_added": {},
+        "service_spofs_removed": {
+          "SVC-REFRIG-0": ["COMP-1-1"]
+        },
+        "service_first_fault_tolerated": {},
+        "expect_spof_path_abstention": false
+      }
+    },
+    {
+      "event": "what_if",
+      "label": "remove-condenser",
+      "intervention": {
+        "type": "remove_asset",
+        "asset_key": "COND-1"
+      },
+      "expected_delta": {
+        "lost_services": ["SVC-REFRIG-0"],
+        "restored_services": [],
+        "service_spofs_added": {},
+        "service_spofs_removed": {},
+        "service_first_fault_tolerated": {},
+        "expect_spof_path_abstention": null
+      }
+    }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-REFRIG-0": false
+      },
+      "service_spofs": {
+        "SVC-REFRIG-0": ["ATS-1", "COMP-1-1", "COND-1", "PDU-1", "RACK-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-REFRIG-0": false
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-REFRIG-0": false
+      }
+    }
+  ],
+  "adjudicated_by": "Construction intent (upgrade removes the lone compressor's SPOF finding with two live members; condenser removal cascades exactly like its fault while the cold room keeps facility power; reviewer: founder)"
+}

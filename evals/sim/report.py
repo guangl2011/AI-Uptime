@@ -15,6 +15,7 @@ from evals.sim.runner import (
     GateResult,
     SimScenarioOutcome,
     SweepResult,
+    WhatIfOutcome,
 )
 
 
@@ -46,6 +47,20 @@ def render_json(results: SimResults) -> dict[str, object]:
                 "passed": outcome.passed,
                 "checks": outcome.checks,
                 "failures": list(outcome.failures),
+                "what_ifs": [
+                    {
+                        "label": wi.label,
+                        "intervention": wi.intervention,
+                        "intervention_kind": wi.intervention_kind,
+                        "passed": wi.passed,
+                        "checks": wi.checks,
+                        "delta_failures": list(wi.delta_failures),
+                        "spof_path_failures": list(wi.spof_path_failures),
+                        "purity_failures": list(wi.purity_failures),
+                        "abstention": wi.abstention,
+                    }
+                    for wi in outcome.what_ifs
+                ],
                 "trace": [step.to_json() for step in outcome.trace],
             }
             for outcome in results.scenarios
@@ -82,11 +97,15 @@ def render_markdown(results: SimResults) -> str:
     """The human-readable report (PR comment / workflow artifact)."""
     sweep_total = len(results.sweep.cases)
     scenario_checks = sum(outcome.checks for outcome in results.scenarios)
+    what_ifs = tuple(wi for outcome in results.scenarios for wi in outcome.what_ifs)
+    what_if_checks = sum(wi.checks for wi in what_ifs)
+    abstentions = [wi for wi in what_ifs if wi.abstention is not None]
     lines = [
-        "# Simulation report (Sim M1)",
+        "# Simulation report (Sim M1–M3)",
         "",
         f"Seed: {results.seed} · Facilities: {results.sweep.facilities} · "
         f"Sequenced scenarios: {len(results.scenarios)} ({scenario_checks} stepwise checks) · "
+        f"What-if markers: {len(what_ifs)} ({what_if_checks} counterfactual checks) · "
         f"Sweep cases: {sweep_total}",
         "",
         "Every sequenced scenario is adjudicated by construction intent; the sweep "
@@ -120,6 +139,33 @@ def render_markdown(results: SimResults) -> str:
 
     lines += [
         "",
+        "## What-if counterfactuals (Category 5, per-segment coverage)",
+        "",
+        "| Scenario | Segment | Marker | Intervention | Delta | SPOF-path | Result |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for outcome in results.scenarios:
+        for wi in outcome.what_ifs:
+            delta_cell = "PASS" if not (wi.delta_failures or wi.purity_failures) else "FAIL"
+            if wi.spof_path_failures:
+                spof_cell = "FAIL (residual SPOF)"
+            elif wi.abstention is not None:
+                spof_cell = "abstained"
+            else:
+                spof_cell = "PASS"
+            result = "PASS" if wi.passed else "FAIL"
+            abstention_note = f" — {wi.abstention}" if wi.abstention is not None else ""
+            lines.append(
+                f"| `{outcome.scenario_id}` | {outcome.market} | `{wi.label}` | "
+                f"{wi.intervention} | {delta_cell} | {spof_cell} | {result} |"
+            )
+            if wi.abstention is not None:
+                lines.append(
+                    f"| | | | | | | abstention reason:{abstention_note} |"
+                )
+
+    lines += [
+        "",
         "## Corpus failover sweep (failover semantics, per segment)",
         "",
         "| Segment | Facilities | Fault cases | Agreements | Result |",
@@ -133,6 +179,27 @@ def render_markdown(results: SimResults) -> str:
         lines.append(
             f"| {segment} | {facilities} | {cases} | {cases - mismatches}/{cases} | {marker} |"
         )
+
+    if what_ifs:
+        by_segment: dict[str, list[WhatIfOutcome]] = {}
+        for wi in what_ifs:
+            by_segment.setdefault(wi.market, []).append(wi)
+        coverage = ", ".join(
+            f"{segment} {sum(1 for wi in marker_list if wi.passed)}/{len(marker_list)}"
+            for segment, marker_list in sorted(by_segment.items())
+        )
+        abstention_note = (
+            f" Abstentions: {len(abstentions)} (stated reasons above)."
+            if abstentions
+            else " No abstention paths fired."
+        )
+        lines += [
+            "",
+            f"Category 5 coverage: {len(what_ifs)} markers across "
+            f"{len(by_segment)} segments ({coverage}); deltas and SPOF-path "
+            "verdicts above are 100%-or-fail gates against the adjudicated "
+            f"expectations.{abstention_note}",
+        ]
 
     lines += ["", "## Determinism", ""]
     if results.determinism.ok:
@@ -150,12 +217,21 @@ def _failure_detail(results: SimResults) -> list[str]:
     """The repro payload for every failing check: expected vs observed."""
     lines: list[str] = []
     for outcome in results.scenarios:
-        if outcome.passed:
-            continue
-        lines.append(f"### `{outcome.scenario_id}` (seed {results.seed})")
-        lines.append("")
-        lines.extend(f"- {failure}" for failure in outcome.failures)
-        lines.append("")
+        if not outcome.passed:
+            lines.append(f"### `{outcome.scenario_id}` (seed {results.seed})")
+            lines.append("")
+            lines.extend(f"- {failure}" for failure in outcome.failures)
+            lines.append("")
+        for wi in outcome.what_ifs:
+            if wi.passed:
+                continue
+            lines.append(
+                f"### `{outcome.scenario_id}` what_if `{wi.label}` "
+                f"({wi.intervention}, seed {results.seed})"
+            )
+            lines.append("")
+            lines.extend(f"- {failure}" for failure in wi.failures)
+            lines.append("")
     if results.sweep.mismatches:
         lines.append(f"### corpus sweep (seed {results.seed})")
         lines.append("")

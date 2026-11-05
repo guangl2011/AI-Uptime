@@ -41,6 +41,7 @@ from evals.sim.invariants import (
     check_replay_folds,
     check_replay_recovery,
     check_trace_determinism,
+    check_whatif_counterfactual,
 )
 from uptime_api.app import create_app
 
@@ -55,6 +56,7 @@ ENGINE_CHECKS: tuple[InvariantCheck, ...] = (
     check_replay_folds,
     check_replay_recovery,
     check_recovery_state,
+    check_whatif_counterfactual,
 )
 
 
