@@ -141,6 +141,19 @@ def brier_flat_baseline(labels: Sequence[float]) -> float:
     return brier([prior] * len(labels), labels)
 
 
+def relative_brier_improvement(model_brier: float, baseline_brier: float) -> float | None:
+    """Fraction of the baseline Brier the model removes: (base - model) / base.
+
+    The Phase 5 WP2 go/no-go gate is *relative* (>= 15% better than the
+    flat-prior baseline). None when the baseline is zero — an all-one-class
+    label set, where a relative claim is meaningless (the caller gates that
+    as a failure rather than dividing by zero).
+    """
+    if baseline_brier <= 0.0:
+        return None
+    return (baseline_brier - model_brier) / baseline_brier
+
+
 def _bin_index(p: float, edges: tuple[float, ...]) -> int:
     for i in range(len(edges) - 1):
         lower, upper = edges[i], edges[i + 1]

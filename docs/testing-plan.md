@@ -6,7 +6,7 @@ strategy, AUROC / Brier / calibration / leakage-split policy). This file
 tracks what is *implemented in the repo* and is reconciled with that
 artifact as phases land.
 
-## Current state (Phase 4 — AIDC + hospital segments, WP2 groundwork)
+## Current state (Phase 5 — calibrated WP2 forecast, gated on the holdout)
 
 ### Eval harness (`evals/`, run via `make eval`)
 
@@ -28,7 +28,9 @@ so a regression in one market is visible and blocking, not averaged away.
 | Ranking agreement | Mean Spearman τ between the adjudicated priority ordering (exposure-first, then total reach: `1000×exposed + impacted`, construction-derived — never the assessor's own score) and asset scores | τ ≥ 0.60 |
 | AUROC | Fault-interruption classification over labeled single-fault cases (Mann–Whitney, ties half-credit), 95% paired bootstrap CI | ≥ 0.80 (DOE go/no-go) |
 | Brier score | Mean (p − y)² vs flat-prior baseline, 95% paired bootstrap CI on the improvement | Brier ≤ 0.10 |
-| Calibration reporting | Reliability table (10 bins) + ECE — **reported, not gated**: calibrated probabilities are a WP2 deliverable; the MVP asserts topological exposure, not calibrated risk | table covers all cases |
+| Calibration reporting | Reliability table (10 bins) + ECE — **reported, not gated**: the assessor's exposure score is not a probability; the forecast's own calibration is gated separately below | table covers all cases |
+| Forecast AUROC (WP2) | Held-out fault-interruption classification by the calibrated forecaster, 95% paired bootstrap CI | ≥ 0.80 (DOE go/no-go) |
+| Forecast Brier improvement (WP2) | Relative Brier improvement of the calibrated forecaster vs the flat-prior baseline on the same holdout, 95% paired bootstrap CI on the improvement | ≥ 15% relative and CI > 0 (DOE go/no-go) |
 | No-leakage | Feature windows vs label windows for every replay fold | 0 violations |
 | Fault-injection scenarios | 6 named, reviewable scenario files run as known answers — 4 cold-chain (Phase 3) plus an AIDC lone-chiller cooling-train case and a hospital life-safety isolation case (which must raise the isolation finding) | 6/6 pass |
 
@@ -46,19 +48,66 @@ risk that is not there. Absorbed impact is still reported in
 with it: priority is exposure-first (the product surfaces unprotected
 damage first) with total reach as the tiebreak.
 
-### WP2 forecasting pass (feature-flagged; reported, never gated)
+### WP2 calibrated forecast (Phase 5 — feature-flagged, gated on the holdout)
 
-The `uptime_api.forecasting` package holds the WP2 groundwork: a
-`ForecastModel` interface returning `RiskForecast` estimates with
-uncertainty bounds, a flat-prior baseline estimator, and a flag resolver
-(default OFF). The flag exists only so the module can be evaluated: the
-harness installs the flat-prior model for an extra assessment pass and
-scores its `p_fault` against the same by-construction labels — AUROC,
-Brier, and per-segment tables are **reported, not gated** (calibrated
-probabilities stay a WP2 deliverable per the locked testing plan).
-Forecasts are informational estimates; nothing in the codebase acts on
-them, and the read-only posture test (`tests/test_readonly_posture.py`)
-runs unchanged.
+The placeholder flat-prior estimator is replaced by a calibrated
+forecaster (`uptime_api.forecasting`): a `ForecastModel` interface
+returning `RiskForecast` estimates with uncertainty bounds, plus a
+deterministic flag resolver (default OFF).
+
+**Model.** Features are per-asset protection statuses derived
+deterministically from the graph snapshot (`features.py`): whether every
+supply edge the asset feeds is covered by an explicit redundant group
+(N+1 / 2N with ≥ 2 members), whether it also has unprotected edges, and
+whether the asset feeds nothing at all. Declared redundancy that its
+member groups cannot support (an N+1/2N edge whose group has one member,
+or names no group) is a **conflict**: the snapshot contradicts itself, so
+the forecaster abstains with a stated reason and falls back to the
+flat-prior value — never a confident guess from contradictory data.
+
+**Calibration.** A per-status Beta-Binomial table maps protection status
+→ P(service-interruption exposure within a 90-day horizon): posterior
+mean as the point estimate, ±2 posterior sigma as the uncertainty bounds
+(clipped into [0.01, 0.99] and always containing the point estimate). The
+canonical table is frozen in `forecasting/canonical.py` — fitted once
+from the canonical corpus through the real API-loading path on a
+facility-level 75/25 split (60 train / 20 eval facilities; seed
+`CORPUS_SEED`), never re-fit implicitly. A drift-pin test refits from the
+corpus and fails if the frozen constants and the documented counts (507 /
+341 / 106 training cases) no longer match, so corpus or feature changes
+force a deliberate regeneration. Cells with < 30 training cases abstain
+with a stated reason (visible when a hand-shrunken corpus is evaluated);
+abstained values carry the flat-prior fallback and full-width bounds, so
+abstention can never score better than the baseline it defers to.
+
+**Evaluation — the WP2 go/no-go gates, now enforced.** The forecast pass
+(`evals/harness.py`) fits on the training facilities only, then scores
+held-out facilities through the real assessment surface. Gates (overall
+and per scored segment; a missing forecast pass fails the overall gate
+rather than skipping):
+
+- **Forecast AUROC ≥ 0.80** (DOE go/no-go) on the held-out cases, with a
+  95% paired bootstrap CI.
+- **Forecast Brier ≥ 15% better than the flat-prior baseline** (DOE
+  go/no-go): relative improvement `(baseline − model) / baseline` with a
+  95% paired bootstrap CI whose lower bound must be > 0.
+- **Calibration reporting** — reliability table + ECE over the holdout,
+  gated on table coverage (every scored case lands in the table), with
+  the ECE value reported, not thresholded.
+
+Canonical-corpus results (verified 2026-11-05, explicitly synthetic-only):
+321 held-out cases from 20 facilities, forecast AUROC 1.000, Brier 0.0000
+vs baseline 0.2487 (+100% relative, CI > 0), ECE 0.003, no abstentions.
+See "Known gaps" for why these perfect numbers are degenerate rather
+than impressive.
+
+**Posture (unchanged and binding).** The flag stays default-off; when
+enabled the forecasts are informational annotations on the report —
+uncertainty bounds on every point estimate, abstention with a stated
+reason on conflicts or sparse calibration data, and no action or control
+path anywhere (the read-only posture test runs unchanged). The console
+renders abstained rows as "abstained — <reason>", never as a bare
+fallback number.
 
 Sparse-label honesty: the report states explicitly that every number is
 synthetic (labels are adjudicated from topology construction, not observed
@@ -93,10 +142,13 @@ unreported.
 
 | Check | Where |
 |---|---|
-| Metrics math (AUROC ties, Brier, baseline, reliability bins, ECE, Spearman, bootstrap determinism) | `tests/evals/test_metrics.py` |
+| Metrics math (AUROC ties, Brier, baseline, relative Brier improvement, reliability bins, ECE, Spearman, bootstrap determinism) | `tests/evals/test_metrics.py` |
 | Corpus determinism, label-vs-construction integrity, CSV round-trip through the real parser (all three segments) | `tests/evals/test_corpus.py` |
 | Fold geometry, leakage guards, cross-seed leak-free replay folds | `tests/evals/test_splits.py` |
 | Scenario file integrity + known-answer runs + tamper detection | `tests/evals/test_scenarios.py` |
+| Forecast pass on the facility-level holdout: gates, abstention accounting, report sections (JSON + Markdown) | `tests/evals/test_harness_forecast.py` |
+| Protection features, Beta-Binomial calibration, facility-level split, abstention semantics, flag resolution | `tests/forecasting/` |
+| Canonical calibration table drift pin (frozen constants == fresh refit) | `tests/forecasting/test_canonical.py` |
 | Inventory parsing / graph provenance / scoring / SPOF / API surface | `tests/ingestion/`, `tests/graph/`, `tests/assessor/`, `tests/api/` |
 | Read-only posture (no control-write surface) | `tests/test_readonly_posture.py` |
 
@@ -267,8 +319,9 @@ ride-through stay out of scope, per the M1 note above).
 
 - Historical replay on pilot data (WP4): the point where AUROC / Brier /
   lead-time numbers start to mean anything about a real facility.
-- Calibration *thresholds* and probability-bearing outputs (WP2): gated on
-  labeled data; the MVP reports exposure and data gaps instead.
+- Calibrated probabilities against *real* labels (WP2): the calibrated
+  forecaster and its go/no-go gates are live on synthetic data; every
+  probability-bearing claim stays gated on labeled field data.
 - Ranked-prioritization improvement (≥ 20%) and actionable lead time:
   metrics machinery (rank agreement) is live; the targets stay claimable
   only after replay data exists.
@@ -281,3 +334,12 @@ and lead-time targets can only be exercised on constructed ground truth.
 The market-pain figures cited in the DOE proposal (e.g. Uptime Institute
 outage costs) are not re-verified here and must be re-checked from current
 public sources before any customer-facing claim.
+
+Forecast-specific gaps: the by-construction labels are a deterministic
+function of the same topology facts the protection features read, so the
+forecaster separates the holdout perfectly — AUROC 1.000 and Brier 0.0000
+are degenerate (the labels are recoverable from the graph), not evidence
+of predictive skill. The gates bind only once real, noisier labels exist;
+the shared-blind-spot risk applies (features and labels come from the
+same construction), and the abstention path is exercised by constructed
+conflicts and thin-cell corpora, not yet by real operator data.

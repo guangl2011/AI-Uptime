@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 
+from uptime_api.forecasting.features import redundancy_class_of
 from uptime_api.forecasting.schema import RiskForecast
 from uptime_api.graph.enums import RedundancyConfig
 from uptime_api.graph.schemas import EdgeOut, GraphSnapshotOut, NodeOut
@@ -37,21 +38,6 @@ HORIZON_DAYS = 90
 # honest "wide, not calibrated" bounds without a scipy dependency.
 SIGMA_MULTIPLIER = 2.0
 BOUND_FLOOR, BOUND_CEILING = 0.01, 0.99
-
-
-def redundancy_class_of(out_edges: list[EdgeOut]) -> RedundancyConfig:
-    """Weakest outgoing supply configuration = the asset's own protection.
-
-    Unprotected (no group, or N) wins over N+1, which wins over 2N — the
-    weakest-link rule the assessor applies to services, read from the
-    supplier side.
-    """
-    configs = [edge.redundancy_config for edge in out_edges]
-    if not out_edges or RedundancyConfig.N in configs or None in configs:
-        return RedundancyConfig.N
-    if RedundancyConfig.N_PLUS_1 in configs:
-        return RedundancyConfig.N_PLUS_1
-    return RedundancyConfig.N2
 
 
 def _group_label(out_edges: list[EdgeOut]) -> str:

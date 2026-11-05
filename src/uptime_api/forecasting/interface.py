@@ -46,13 +46,18 @@ def resolve_forecaster(*, enabled: bool | None = None) -> ForecastModel | None:
     An explicit ``enabled`` argument wins; otherwise the ``UPTIME_FORECASTING``
     environment variable decides. None means disabled — the default posture:
     the assessor runs without forecasts and reports carry none.
+
+    The flag-on model is the Phase 5 calibrated forecaster (fitted Beta
+    posteriors over protection cells with stated abstention); the Phase 4
+    flat-prior model remains as the fixed baseline the eval scores against
+    and the abstention fallback defers to.
     """
     flag = enabled if enabled is not None else _env_flag()
     if not flag:
         return None
-    from uptime_api.forecasting.baseline import FlatPriorForecastModel
+    from uptime_api.forecasting.calibrated import CalibratedForecastModel
 
-    return FlatPriorForecastModel()
+    return CalibratedForecastModel()
 
 
 def _env_flag() -> bool:

@@ -13,6 +13,7 @@ from evals.metrics import (
     expected_calibration_error,
     precision_recall,
     rank_with_ties,
+    relative_brier_improvement,
     reliability_bins,
     spearman,
 )
@@ -123,3 +124,24 @@ def test_precision_recall_counts() -> None:
     assert stats.true_positives == 2
     assert stats.precision == pytest.approx(2 / 3)
     assert stats.recall == pytest.approx(2 / 3)
+
+
+def test_relative_brier_improvement_positive_change() -> None:
+    # (0.25 - 0.10) / 0.25 = 0.60: a 60% relative improvement.
+    assert relative_brier_improvement(0.10, 0.25) == pytest.approx(0.60)
+
+
+def test_relative_brier_improvement_negative_change() -> None:
+    # Worse than baseline: (0.25 - 0.26) / 0.25 = -0.04.
+    assert relative_brier_improvement(0.26, 0.25) == pytest.approx(-0.04)
+
+
+def test_relative_brier_improvement_zero_change() -> None:
+    assert relative_brier_improvement(0.25, 0.25) == pytest.approx(0.0)
+
+
+def test_relative_brier_improvement_returns_none_for_zero_baseline() -> None:
+    # A zero baseline makes any relative claim meaningless (division by zero
+    # or negative denominators) — the function reports None and the harness
+    # gates that as a failure, not a number.
+    assert relative_brier_improvement(0.10, 0.0) is None

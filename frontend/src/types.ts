@@ -131,7 +131,8 @@ export interface ServiceAssessment {
 }
 
 /** One WP2 risk forecast with uncertainty bounds (feature-flagged; default off).
- *  Informational only — nothing in the system executes on it. */
+ *  Informational only — nothing in the system executes on it. Abstained rows
+ *  carry a stated reason and the flat-prior fallback, never a real estimate. */
 export interface RiskForecast {
   asset_key: string
   horizon_days: number
@@ -139,6 +140,8 @@ export interface RiskForecast {
   lower: number
   upper: number
   redundancy_class: string | null
+  status: 'forecast' | 'abstained'
+  abstention_reason: string | null
   basis: string
 }
 
