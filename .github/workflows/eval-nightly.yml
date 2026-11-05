@@ -1,9 +1,10 @@
 name: nightly-eval
 
-# Nightly evaluation over the full canonical synthetic corpus. The report is
-# uploaded as a workflow artifact per run (never committed to the repo) so
-# metric drift is reviewable over time. Mirrors the eval gates that run on
-# every PR in ci.yml; this schedule exists for drift history, not coverage.
+# Nightly evaluation over the full canonical synthetic corpus, plus the
+# simulation suite. Reports are uploaded as workflow artifacts per run (never
+# committed to the repo) so metric drift is reviewable over time. Mirrors
+# the eval + sim gates that run on every PR in ci.yml; this schedule exists
+# for drift history, not coverage.
 on:
   schedule:
     # 03:17 UTC daily — off the top of the hour to avoid runner contention.
@@ -33,3 +34,13 @@ jobs:
         with:
           name: eval-report-${{ github.run_id }}
           path: eval-results/
+
+      - name: Run simulation suite
+        run: python -m evals.sim --output-dir eval-results/sim
+
+      - name: Upload sim report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-report-${{ github.run_id }}
+          path: eval-results/sim/

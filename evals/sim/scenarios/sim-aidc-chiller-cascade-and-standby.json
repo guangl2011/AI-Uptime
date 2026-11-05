@@ -1,0 +1,417 @@
+{
+  "scenario_id": "sim-aidc-chiller-cascade-and-standby",
+  "title": "AIDC: lone-chiller cascade and pump-pair degradation",
+  "description": "A lone chiller (N, no partner) serves a chilled-water loop whose dual pumps (N+1) shield row cooling in the assessor's single-fault view. When the chiller actually dies, the water service dies with it, both pumps lose their supply, and the pump pair cannot save row cooling — the cascade exceeds the what-if label (cooling and IT fall with the water loop). The repair restores every cascade-dead node at once. Then one pump faults (absorbed; the surviving pump becomes a new single point of failure — degraded tolerance made visible in the SPOF list), the second pump faults (cooling and IT fall, the water loop survives), and one repair restores the service. Adjudicates Category 2's central case: secondary losses flowing through a protecting group's own supply.",
+  "market": "aidc",
+  "facility_id": "sim-aidc-chiller-cascade",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-aidc-chiller-cascade-and-standby",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "UPS-1",
+        "node_type": "asset",
+        "asset_type": "ups",
+        "name": "UPS 1",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "PDU 1",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "CHILLER-1-1",
+        "node_type": "asset",
+        "asset_type": "chiller",
+        "name": "Chiller 1-1",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "PUMP-1-1",
+        "node_type": "asset",
+        "asset_type": "pump",
+        "name": "CHW pump 1-1",
+        "location": "mechanical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "PUMP-1-2",
+        "node_type": "asset",
+        "asset_type": "pump",
+        "name": "CHW pump 1-2",
+        "location": "mechanical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "CDU-1",
+        "node_type": "asset",
+        "asset_type": "cdu",
+        "name": "CDU 1",
+        "location": "data hall",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "it_rack",
+        "name": "IT rack row 1",
+        "location": "data hall",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "SVC-CHW-1",
+        "node_type": "service",
+        "name": "Chilled water row 1",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "SVC-COOLING-1",
+        "node_type": "service",
+        "name": "Row 1 cooling",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "node_key": "SVC-IT-1",
+        "node_type": "service",
+        "name": "Row 1 IT load",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "UPS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "UPS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CHILLER-1-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "CHILLER-1-1",
+        "to_node": "SVC-CHW-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "SVC-CHW-1",
+        "to_node": "PUMP-1-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "SVC-CHW-1",
+        "to_node": "PUMP-1-2",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "PUMP-1-1",
+        "to_node": "CDU-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "chw_pumps-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "PUMP-1-2",
+        "to_node": "CDU-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "chw_pumps-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "CDU-1",
+        "to_node": "SVC-COOLING-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "SVC-COOLING-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-IT-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-aidc-chiller-cascade-and-standby"
+        }
+      }
+    ]
+  },
+  "events": [
+    { "event": "fault", "asset_key": "CHILLER-1-1" },
+    { "event": "repair", "asset_key": "CHILLER-1-1" },
+    { "event": "fault", "asset_key": "PUMP-1-2" },
+    { "event": "fault", "asset_key": "PUMP-1-1" },
+    { "event": "repair", "asset_key": "PUMP-1-2" }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-CHW-1": false,
+        "SVC-COOLING-1": false,
+        "SVC-IT-1": false
+      },
+      "service_spofs": {
+        "SVC-CHW-1": ["ATS-1", "CHILLER-1-1", "PDU-1", "UPS-1"],
+        "SVC-COOLING-1": ["CDU-1"],
+        "SVC-IT-1": ["ATS-1", "CDU-1", "PDU-1", "RACK-1", "UPS-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": ["SVC-CHW-1", "SVC-COOLING-1", "SVC-IT-1"],
+      "service_spofs": {
+        "SVC-COOLING-1": []
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": [],
+      "service_spofs": {
+        "SVC-COOLING-1": ["CDU-1"]
+      }
+    },
+    {
+      "step": 3,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-COOLING-1": false
+      },
+      "service_spofs": {
+        "SVC-COOLING-1": ["ATS-1", "CDU-1", "CHILLER-1-1", "PDU-1", "PUMP-1-1", "UPS-1"]
+      }
+    },
+    {
+      "step": 4,
+      "lost_services": ["SVC-COOLING-1", "SVC-IT-1"]
+    },
+    {
+      "step": 5,
+      "lost_services": [],
+      "service_spofs": {
+        "SVC-COOLING-1": ["ATS-1", "CDU-1", "CHILLER-1-1", "PDU-1", "PUMP-1-2", "UPS-1"]
+      }
+    }
+  ],
+  "adjudicated_by": "Construction intent (a dead water loop kills both pumps regardless of the pump pair; a live pair member absorbs its partner; reviewer: founder)"
+}

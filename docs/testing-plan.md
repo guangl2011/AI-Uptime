@@ -109,17 +109,66 @@ asserted by a component test.
 
 - **On every PR and push to `main`** (`.github/workflows/ci.yml`): ruff +
   mypy (strict) + pytest + eval gates over the full corpus; the eval report
-  uploads as a workflow artifact even on gate failure. Frontend job: lint +
-  build.
-- **Nightly** (`.github/workflows/eval-nightly.yml`): full eval on schedule
-  (03:17 UTC) + manual dispatch; report uploaded as a per-run artifact —
-  never committed to the repo (`eval-results/` is gitignored).
+  uploads as a workflow artifact even on gate failure. Simulation gates run
+  in the same job (see below). Frontend job: lint + build.
+- **Nightly** (`.github/workflows/eval-nightly.yml`): full eval + simulation
+  suite on schedule (03:17 UTC) + manual dispatch; reports uploaded as
+  per-run artifacts — never committed to the repo (`eval-results/` is
+  gitignored).
 
 ## Reproducibility
 
 Assessments pin a graph version; the corpus is seeded and deterministic
 (same seed → identical graphs, CSVs, labels, and event logs, verified by
 test). Re-running `make eval` reproduces the same metric values.
+
+## Simulation suite (Sim M1)
+
+`make sim` (`python -m evals.sim`, code under `evals/sim/`) runs a seeded,
+deterministic, discrete-event simulator over graph snapshots from the same
+corpus — it drives the real assessment API and writes nothing outside its
+own throwaway databases and report artifacts. It scores *traces*, not
+single snapshots: ordered fault / repair / redundancy-change / load-shift
+events, with the full assessment state recorded at every step. What-if
+markers are M3 scope; the event union already names them so they can be
+added without a format change.
+
+Gates (reported per segment, same convention as the eval report):
+
+- **Adjudicated sequenced scenarios** — one hand-adjudicated multi-step
+  trace per segment (`evals/sim/scenarios/`, JSON DSL extending the static
+  scenario style with event ordering): cold-chain compressor failover and
+  redundancy upgrade, AIDC chiller cascade with pump-pair degradation, and
+  hospital life-safety ride-through with a med-gas manifold upgrade. Lost
+  services, tolerance flags, and single-point-of-failure sets must match
+  the adjudicated trace exactly — 100% agreement, no tolerance; a mismatch
+  is treated as a bug (in the scenario or the engine), not a difference to
+  wave off.
+- **Corpus fault sweeps** — fault every asset of a reduced corpus
+  (reproducible from the corpus seed) and check the observed cascade loss
+  against the construction-derived labels: exact agreement with the
+  what-if exposure where the labels agree; otherwise bounded between the
+  what-if exposure and the full-impact label. The two labels disagree
+  exactly when a cascade eats a redundant group's reserve — the stateful
+  behavior the static eval cannot see.
+- **Determinism** — two isolated passes (fresh app instances, same seed,
+  same corpus) must produce an identical trace digest; any drift fails the
+  gate.
+
+CI: the sim gates run in the `backend` job on every PR and push to `main`
+(a superset of the plan's assessor/graph/evals trigger set — the suite is
+cheap, and running it unconditionally keeps it merge-blocking under the
+existing required-check contexts), and in the nightly workflow. A gate
+failure uploads the failing seed, trace step, and diff as the workflow
+artifact — a repro case ships with the failure.
+
+Honest semantics note: the simulator's binary states are stateful, not
+timed — redundancy group absorption follows the degraded state (a dead
+group member stops protecting its peers), but transfer durations and
+thermal ride-through are not modeled; that stays deferred to the
+physics-modeling trajectory (WP4). SPOF sets in traces are therefore
+state-conditional ("the surviving pump is a SPOF while its partner is
+down"), which is the intended behavior, not drift.
 
 ## Not yet implemented (later phases, per art_XaCiEWwo)
 

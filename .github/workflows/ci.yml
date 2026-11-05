@@ -43,6 +43,21 @@ jobs:
           name: eval-report-${{ github.run_id }}
           path: eval-results/
 
+      # Simulation gates (evals/sim/): sequenced fault/repair/redundancy
+      # scenarios, corpus fault sweeps, and a determinism digest. A superset
+      # of the plan's assessor/graph/evals trigger set — the suite is cheap
+      # and merge-blocking via this required job. A gate failure uploads the
+      # failing seed, trace step, and diff as the repro artifact.
+      - name: Simulation gates
+        run: python -m evals.sim --output-dir eval-results/sim
+
+      - name: Upload sim report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-report-${{ github.run_id }}
+          path: eval-results/sim/
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

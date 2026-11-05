@@ -1,0 +1,337 @@
+{
+  "scenario_id": "sim-cold-chain-compressor-failover-repair",
+  "title": "Cold chain: compressor failover ladder and repair",
+  "description": "One refrigeration rack driven through the full failover ladder: a lone compressor (N) fails and the rack is lost; a standby is added (N -> N+1) and the still-faulted primary is absorbed so service returns before any repair; the repair itself is then invisible to service loss; a condenser fault (no redundancy anywhere on its path) drops the rack again and its repair restores it. Adjudicates Category 1 (failover semantics under N vs N+1) and Category 2 (multi-step fault -> dependent loss -> restore) for the cold-chain beachhead.",
+  "market": "cold_chain",
+  "facility_id": "sim-cold-chain-failover",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-cold-chain-compressor-failover-repair",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Standby generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "Main PDU",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "RACK-1",
+        "node_type": "asset",
+        "asset_type": "refrigeration_rack",
+        "name": "Compressor rack 1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "COMP-1-1",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-1",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "COND-1",
+        "node_type": "asset",
+        "asset_type": "condenser",
+        "name": "Condenser 1",
+        "location": "roof",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "CR-0",
+        "node_type": "asset",
+        "asset_type": "cold_room",
+        "name": "Cold Room 0",
+        "location": "freezer wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "SVC-POWER",
+        "node_type": "service",
+        "name": "Facility power distribution",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "node_key": "SVC-REFRIG-0",
+        "node_type": "service",
+        "name": "Cold Room 0 refrigeration",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "SVC-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "RACK-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "COMP-1-1",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "member_group": "rack_compressors-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "COND-1",
+        "to_node": "RACK-1",
+        "failure_mode": "refrigerant_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "RACK-1",
+        "to_node": "SVC-REFRIG-0",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "SVC-REFRIG-0",
+        "to_node": "CR-0",
+        "failure_mode": "refrigerant_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      },
+      {
+        "from_node": "SVC-POWER",
+        "to_node": "CR-0",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair"
+        }
+      }
+    ]
+  },
+  "events": [
+    { "event": "fault", "asset_key": "COMP-1-1" },
+    {
+      "event": "redundancy_change",
+      "member_group": "rack_compressors-1",
+      "redundancy_config": "N+1",
+      "standby_node": {
+        "node_key": "COMP-1-2",
+        "node_type": "asset",
+        "asset_type": "compressor",
+        "name": "Compressor 1-2 (standby)",
+        "location": "machine room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair:standby"
+        }
+      },
+      "standby_edge": {
+        "from_node": "COMP-1-2",
+        "to_node": "RACK-1",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "rack_compressors-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-cold-chain-compressor-failover-repair:standby"
+        }
+      }
+    },
+    { "event": "repair", "asset_key": "COMP-1-1" },
+    { "event": "fault", "asset_key": "COND-1" },
+    { "event": "repair", "asset_key": "COND-1" }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-REFRIG-0": false
+      },
+      "service_spofs": {
+        "SVC-REFRIG-0": ["ATS-1", "COMP-1-1", "COND-1", "PDU-1", "RACK-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": ["SVC-REFRIG-0"],
+      "service_first_fault_tolerated": {
+        "SVC-POWER": false,
+        "SVC-REFRIG-0": false
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": [],
+      "service_spofs": {
+        "SVC-REFRIG-0": ["ATS-1", "COMP-1-2", "COND-1", "PDU-1", "RACK-1"]
+      }
+    },
+    {
+      "step": 3,
+      "lost_services": [],
+      "service_spofs": {
+        "SVC-REFRIG-0": ["ATS-1", "COND-1", "PDU-1", "RACK-1"]
+      }
+    },
+    {
+      "step": 4,
+      "lost_services": ["SVC-REFRIG-0"],
+      "service_first_fault_tolerated": {
+        "SVC-REFRIG-0": false
+      }
+    },
+    {
+      "step": 5,
+      "lost_services": []
+    }
+  ],
+  "adjudicated_by": "Construction intent (N fails on first fault; N+1 with a live standby absorbs; repair of an absorbed fault is loss-invisible; reviewer: founder)"
+}
