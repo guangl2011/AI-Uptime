@@ -1,10 +1,11 @@
 name: nightly-eval
 
 # Nightly evaluation over the full canonical synthetic corpus, plus the
-# simulation suite. Reports are uploaded as workflow artifacts per run (never
-# committed to the repo) so metric drift is reviewable over time. Mirrors
-# the eval + sim gates that run on every PR in ci.yml; this schedule exists
-# for drift history, not coverage.
+# simulation suite and the 1,000-seed invariant sweep. Reports are uploaded as
+# workflow artifacts per run (never committed to the repo) so metric drift is
+# reviewable over time. Mirrors the eval + sim gates that run on every PR in
+# ci.yml; this schedule exists for drift history and the plan's seed-count
+# gate (push CI runs the Hypothesis property seeds only), not new coverage.
 on:
   schedule:
     # 03:17 UTC daily — off the top of the hour to avoid runner contention.
@@ -44,3 +45,13 @@ jobs:
         with:
           name: sim-report-${{ github.run_id }}
           path: eval-results/sim/
+
+      - name: Run invariant sweep (1,000 seeds)
+        run: python -m evals.sim.invariant_sweep --output-dir eval-results/invariants
+
+      - name: Upload invariant sweep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: invariant-sweep-report-${{ github.run_id }}
+          path: eval-results/invariants/
