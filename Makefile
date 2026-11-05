@@ -1,4 +1,4 @@
-.PHONY: demo seed eval test check install frontend-install clean
+.PHONY: demo seed eval sim test check install frontend-install clean
 
 # The package lives under src/ and is installed editable into .venv; make
 # bootstrap the venv from pyproject.toml on first use so a fresh clone runs
@@ -32,6 +32,14 @@ seed: $(VENV)/bin/python
 # non-zero exit when any gate fails. Mirrors the sibling repo's `make eval`.
 eval: $(VENV)/bin/python
 	$(PYTHON) -m evals --output-dir eval-results
+
+# Simulation suite (evals/sim/): seeded discrete-event scenarios + corpus
+# fault sweeps -> adjudicated-trace gates with a determinism digest. Writes
+# sim-report.{md,json} under eval-results/sim/ (gitignored); non-zero exit
+# when any gate fails. Runs alongside `make eval`, not instead of it —
+# eval scores single-snapshot answers, sim scores traces and invariants.
+sim: $(VENV)/bin/python
+	$(PYTHON) -m evals.sim --output-dir eval-results/sim
 
 frontend-install:
 	npm --prefix frontend ci --no-audit --no-fund --silent

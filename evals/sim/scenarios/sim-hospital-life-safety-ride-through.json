@@ -1,0 +1,522 @@
+{
+  "scenario_id": "sim-hospital-life-safety-ride-through",
+  "title": "Hospital: life-safety ride-through and med-gas manifold upgrade",
+  "description": "Two independent branches behind a 2N source pair: the life-safety branch (ATS -> LS panel -> OR air handlers and med gas) and the general branch (UPS -> PDU -> general panel -> imaging and general HVAC). A utility fault drops the general branch while life-safety services ride through on the generator — the ride-through adjudicated exactly, including that no asset's single fault can reach OR air. The generator faulting alone is loss-invisible. A lone med-gas manifold (N) fails and interrupts medical gas; its repair restores it; upgrading the manifold to N+1 (standby added) removes the SPOF; the primary then fails again and the standby absorbs it, with the report honestly degrading tolerance (first_fault_tolerated flips false, the standby becomes the SPOF). Adjudicates Categories 1 and 2 for hospitals plus the redundancy-change surface M3's what-if claims will build on.",
+  "market": "hospital",
+  "facility_id": "sim-hospital-ride-through",
+  "topology": {
+    "author": "eval_sim_scenarios",
+    "notes": "Sim scenario topology: sim-hospital-life-safety-ride-through",
+    "nodes": [
+      {
+        "node_key": "UTILITY-1",
+        "node_type": "asset",
+        "asset_type": "utility_feed",
+        "name": "Utility feed",
+        "location": "site entrance",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "GEN-1",
+        "node_type": "asset",
+        "asset_type": "generator",
+        "name": "Emergency generator",
+        "location": "yard",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "ATS-1",
+        "node_type": "asset",
+        "asset_type": "ats",
+        "name": "Automatic transfer switch",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "LS-PANEL",
+        "node_type": "asset",
+        "asset_type": "distribution_panel",
+        "name": "Life-safety panel",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "OR-AH-1",
+        "node_type": "asset",
+        "asset_type": "air_handler",
+        "name": "OR air handler 1",
+        "location": "surgery wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "OR-AH-2",
+        "node_type": "asset",
+        "asset_type": "air_handler",
+        "name": "OR air handler 2",
+        "location": "surgery wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "MEDGAS-1",
+        "node_type": "asset",
+        "asset_type": "med_gas_manifold",
+        "name": "Medical gas manifold 1",
+        "location": "surgery wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "UPS-1",
+        "node_type": "asset",
+        "asset_type": "ups",
+        "name": "UPS 1",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "PDU-1",
+        "node_type": "asset",
+        "asset_type": "pdu",
+        "name": "PDU 1",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "GENERAL-PANEL",
+        "node_type": "asset",
+        "asset_type": "distribution_panel",
+        "name": "General branch panel",
+        "location": "electrical room",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "IMG-1",
+        "node_type": "asset",
+        "asset_type": "medical_imaging",
+        "name": "Imaging suite 1",
+        "location": "radiology",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "AH-2",
+        "node_type": "asset",
+        "asset_type": "air_handler",
+        "name": "General air handler 2",
+        "location": "clinic wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "SVC-LS-POWER",
+        "node_type": "service",
+        "name": "Life-safety power",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "SVC-OR-AIR",
+        "node_type": "service",
+        "name": "Operating-room air handling",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "SVC-MEDGAS",
+        "node_type": "service",
+        "name": "Medical gas supply",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "SVC-IMAGING",
+        "node_type": "service",
+        "name": "Imaging suite power",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "node_key": "SVC-GENERAL-HVAC",
+        "node_type": "service",
+        "name": "General HVAC",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "GEN-1",
+        "to_node": "ATS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "2N",
+        "member_group": "site-sources-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "ATS-1",
+        "to_node": "LS-PANEL",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "SVC-LS-POWER",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "OR-AH-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "OR-AH-2",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "OR-AH-1",
+        "to_node": "SVC-OR-AIR",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "or_air_handlers-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "OR-AH-2",
+        "to_node": "SVC-OR-AIR",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "or_air_handlers-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "LS-PANEL",
+        "to_node": "MEDGAS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "MEDGAS-1",
+        "to_node": "SVC-MEDGAS",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "member_group": "medgas_manifold-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "UTILITY-1",
+        "to_node": "UPS-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "UPS-1",
+        "to_node": "PDU-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "PDU-1",
+        "to_node": "GENERAL-PANEL",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "GENERAL-PANEL",
+        "to_node": "IMG-1",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "IMG-1",
+        "to_node": "SVC-IMAGING",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "GENERAL-PANEL",
+        "to_node": "AH-2",
+        "failure_mode": "power_loss",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      },
+      {
+        "from_node": "AH-2",
+        "to_node": "SVC-GENERAL-HVAC",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through"
+        }
+      }
+    ]
+  },
+  "events": [
+    { "event": "fault", "asset_key": "UTILITY-1" },
+    { "event": "repair", "asset_key": "UTILITY-1" },
+    { "event": "fault", "asset_key": "GEN-1" },
+    { "event": "fault", "asset_key": "MEDGAS-1" },
+    { "event": "repair", "asset_key": "MEDGAS-1" },
+    {
+      "event": "redundancy_change",
+      "member_group": "medgas_manifold-1",
+      "redundancy_config": "N+1",
+      "standby_node": {
+        "node_key": "MEDGAS-2",
+        "node_type": "asset",
+        "asset_type": "med_gas_manifold",
+        "name": "Medical gas manifold 2 (standby)",
+        "location": "surgery wing",
+        "attributes": {},
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through:standby"
+        }
+      },
+      "standby_edge": {
+        "from_node": "MEDGAS-2",
+        "to_node": "SVC-MEDGAS",
+        "failure_mode": "mechanical_failure",
+        "redundancy_config": "N+1",
+        "member_group": "medgas_manifold-1",
+        "provenance": {
+          "source_kind": "technician_entry",
+          "source_system": "eval_sim_scenarios",
+          "source_ref": "sim:sim-hospital-life-safety-ride-through:standby"
+        }
+      }
+    },
+    { "event": "fault", "asset_key": "MEDGAS-1" }
+  ],
+  "expected_trace": [
+    {
+      "step": 0,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-OR-AIR": true,
+        "SVC-MEDGAS": false
+      },
+      "service_spofs": {
+        "SVC-MEDGAS": ["ATS-1", "LS-PANEL", "MEDGAS-1"]
+      }
+    },
+    {
+      "step": 1,
+      "lost_services": ["SVC-GENERAL-HVAC", "SVC-IMAGING"],
+      "service_first_fault_tolerated": {
+        "SVC-OR-AIR": true
+      },
+      "service_spofs": {
+        "SVC-OR-AIR": []
+      }
+    },
+    {
+      "step": 2,
+      "lost_services": []
+    },
+    {
+      "step": 3,
+      "lost_services": []
+    },
+    {
+      "step": 4,
+      "lost_services": ["SVC-MEDGAS"],
+      "service_spofs": {
+        "SVC-MEDGAS": []
+      }
+    },
+    {
+      "step": 5,
+      "lost_services": [],
+      "service_spofs": {
+        "SVC-MEDGAS": ["ATS-1", "LS-PANEL", "MEDGAS-1", "UTILITY-1"]
+      }
+    },
+    {
+      "step": 6,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-MEDGAS": true
+      },
+      "service_spofs": {
+        "SVC-MEDGAS": []
+      }
+    },
+    {
+      "step": 7,
+      "lost_services": [],
+      "service_first_fault_tolerated": {
+        "SVC-MEDGAS": false
+      },
+      "service_spofs": {
+        "SVC-MEDGAS": ["MEDGAS-2"]
+      }
+    }
+  ],
+  "adjudicated_by": "Construction intent (the 2N pair rides life-safety through a utility loss; the N+1 handler pair blocks OR-air exposure; the standby manifold absorbs the primary's fault; reviewer: founder)"
+}
