@@ -1,4 +1,4 @@
-.PHONY: demo seed eval sim invariants test check install frontend-install clean
+.PHONY: demo seed eval sim invariants forecast-sweep test check install frontend-install clean
 
 # The package lives under src/ and is installed editable into .venv; make
 # bootstrap the venv from pyproject.toml on first use so a fresh clone runs
@@ -49,6 +49,18 @@ sim: $(VENV)/bin/python
 # cadence — push CI runs the Hypothesis property seeds via `make test`.
 invariants: $(VENV)/bin/python
 	$(PYTHON) -m evals.sim.invariant_sweep --output-dir eval-results/invariants
+
+# Forecast-under-dynamics seed sweep (evals/sim/forecast_dynamics, Sim M4):
+# the plan's Category 6 structural gates over generated seeds — sign,
+# repair-restores, abstention identity, bounds monotonicity, digest
+# determinism — plus the sweep's own report. Writes
+# forecast-dynamics.{md,json} under eval-results/forecast-dynamics/
+# (gitignored); non-zero exit with the failing seed + trace when a gate
+# fails. Nightly cadence (100 seeds by default; --seeds N for heavier
+# runs) — push CI covers the gates via `make sim` and the property seeds
+# via `make test`.
+forecast-sweep: $(VENV)/bin/python
+	$(PYTHON) -m evals.sim.forecast_dynamics --output-dir eval-results/forecast-dynamics
 
 frontend-install:
 	npm --prefix frontend ci --no-audit --no-fund --silent

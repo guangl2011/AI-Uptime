@@ -164,7 +164,8 @@ asserted by a component test.
   uploads as a workflow artifact even on gate failure. Simulation gates run
   in the same job (see below). Frontend job: lint + build.
 - **Nightly** (`.github/workflows/eval-nightly.yml`): full eval + simulation
-  suite on schedule (03:17 UTC) + manual dispatch; reports uploaded as
+  suite + 1,000-seed invariant sweep + forecast-under-dynamics seed sweep
+  on schedule (03:17 UTC) + manual dispatch; reports uploaded as
   per-run artifacts — never committed to the repo (`eval-results/` is
   gitignored).
 
@@ -315,6 +316,69 @@ state-conditional redundancy can make a path's verdict genuinely
 undecidable at the binary-state layer (transfer timing and
 ride-through stay out of scope, per the M1 note above).
 
+## Forecast under dynamics (Sim M4)
+
+The plan's final milestone: the Phase 5 calibrated forecast is evaluated
+across simulated dynamics. The sequenced-scenario DSL's fault / repair /
+redundancy-change / load-shift events materialize graph states exactly as
+in M1, and at every state the forecast runs through the same real API path
+(the canonical frozen model is installed on the throwaway app for the pass
+duration and restored after — the product default stays OFF and
+informational, with no action path). What is under test is the forecast's
+*behavior across state changes* — signs, restoration, abstention identity,
+bound behavior, determinism — not its accuracy and not the event timing.
+
+Category 6 gates (per segment, merge-blocking inside `make sim`):
+
+- **`forecast_degradation_sign`** — a fault that removes protection must
+  never *decrease* the forecast of a surviving stable feed relative to its
+  pre-fault value (expected degradation moves with the right sign), and a
+  fault that silently clears an abstention (a redundancy loss the model
+  never registered) fails the gate. Scope is deliberately narrow: feeds
+  whose own supply edges are unchanged between the two states, so a
+  path-loss confound (the asset's forecast moving because its *own* feed
+  died) is not misread as a sign violation.
+- **`forecast_repair_restores`** — after every fault is repaired, the
+  report's forecast rows must equal a fresh assessment of the intact
+  engine state of the same (post-upgrade) topology, byte for byte. The
+  only sanctioned difference is the canonical-table drift pin (a refit
+  changes shipped constants deliberately and announces itself).
+- **`forecast_abstention_identity`** — the report's forecast rows at
+  *every* materialized state — baseline, every event step, and the intact
+  reference — must equal the static path's forecast on the same snapshot
+  exactly: same probabilities, same bounds, same abstention status and
+  stated reason. Replay may not change the answer an on-demand assessment
+  would give.
+- **`forecast_bounds_monotone`** — across added fault events on unchanged
+  supply paths, uncertainty intervals may widen or hold, never silently
+  shrink: information loss cannot tighten a bound. Upgrade and repair
+  steps are out of scope by construction (`is_fault_step`) — a redundancy
+  upgrade *adds* protection, so a legitimately tighter bound there is not
+  a violation.
+- **Determinism (Category 6 (e))** — folded into the existing M1
+  determinism gate: two same-seed passes must produce an identical
+  forecast-trace digest (canonical JSON over every state's forecast rows)
+  alongside the unchanged M1–M3 assessment-trace digest.
+
+CI: the canonical pass runs inside `make sim` on every PR and push (80
+facilities, 693 forecast states, ~46 s — cheap enough to stay
+merge-blocking). The nightly workflow gains the seed sweep
+(`make forecast-sweep`, 100 seeds by default, one facility per segment per
+seed) with `forecast-dynamics.{md,json}` uploaded as the per-run artifact;
+the property-level determinism check runs inside the existing pytest run.
+
+Honest semantics note — the degenerate-separation caveat, now
+load-bearing: these gates assert *structural* behavior only. No accuracy
+claim (AUROC, Brier, calibration) is made under dynamics, because on the
+synthetic corpus the labels are a deterministic function of the same
+protection facts the forecast features read — an accuracy metric across
+dynamics would be tautological, not evidence of skill. What M4 validates
+is mechanism behavior under state change (does the forecast move, restore,
+abstain, and hold its uncertainty the way the graph says it must), not
+real-world forecast accuracy, real event timing, or facility outcomes;
+those stay gated on pilot replay (WP4). Sweep runtime and per-segment
+coverage are stated in each sweep report.
+
 ## Not yet implemented (later phases, per art_XaCiEWwo)
 
 - Historical replay on pilot data (WP4): the point where AUROC / Brier /
@@ -342,4 +406,9 @@ are degenerate (the labels are recoverable from the graph), not evidence
 of predictive skill. The gates bind only once real, noisier labels exist;
 the shared-blind-spot risk applies (features and labels come from the
 same construction), and the abstention path is exercised by constructed
-conflicts and thin-cell corpora, not yet by real operator data.
+conflicts and thin-cell corpora, not yet by real operator data. The same
+caveat governs the Sim M4 dynamics gates: they are structural properties
+(signs, restoration, abstention identity, bound behavior, determinism),
+never accuracy claims under dynamics, and the sweep's scope rules
+(stable unchanged feeds, fault steps only) are the documented boundary of
+what the gates can and cannot see.

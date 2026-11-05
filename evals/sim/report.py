@@ -10,8 +10,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from evals.corpus import SEGMENTS
+from evals.sim.forecast_dynamics import (
+    FORECAST_PROPERTIES,
+    ForecastDynamicsResult,
+    forecast_dynamics_json,
+)
 from evals.sim.runner import (
     DeterminismResult,
+    ForecastDeterminismResult,
     GateResult,
     SimScenarioOutcome,
     SweepResult,
@@ -29,11 +36,13 @@ class SimResults:
     sweep: SweepResult
     determinism: DeterminismResult
     gates: tuple[GateResult, ...]
+    forecast_dynamics: ForecastDynamicsResult | None = None
+    forecast_determinism: ForecastDeterminismResult | None = None
 
 
 def render_json(results: SimResults) -> dict[str, object]:
     """The full structured run, including every trace step (CI artifact)."""
-    return {
+    json_payload: dict[str, object] = {
         "seed": results.seed,
         "facilities_per_segment": results.facilities_per_segment,
         "gates": [
@@ -85,12 +94,24 @@ def render_json(results: SimResults) -> dict[str, object]:
                 for case in results.sweep.mismatches
             ],
         },
-        "determinism": {
-            "ok": results.determinism.ok,
-            "first_digest": results.determinism.first_digest,
-            "second_digest": results.determinism.second_digest,
-        },
     }
+    determinism_json: dict[str, object] = {
+        "ok": results.determinism.ok,
+        "first_digest": results.determinism.first_digest,
+        "second_digest": results.determinism.second_digest,
+    }
+    if results.forecast_determinism is not None:
+        determinism_json["forecast_dynamics"] = {
+            "ok": results.forecast_determinism.ok,
+            "first_digest": results.forecast_determinism.first_digest,
+            "second_digest": results.forecast_determinism.second_digest,
+        }
+    json_payload["determinism"] = determinism_json
+    if results.forecast_dynamics is not None:
+        json_payload["forecast_dynamics"] = forecast_dynamics_json(
+            results.forecast_dynamics
+        )
+    return json_payload
 
 
 def render_markdown(results: SimResults) -> str:
@@ -101,7 +122,7 @@ def render_markdown(results: SimResults) -> str:
     what_if_checks = sum(wi.checks for wi in what_ifs)
     abstentions = [wi for wi in what_ifs if wi.abstention is not None]
     lines = [
-        "# Simulation report (Sim M1–M3)",
+        "# Simulation report (Sim M1–M4)",
         "",
         f"Seed: {results.seed} · Facilities: {results.sweep.facilities} · "
         f"Sequenced scenarios: {len(results.scenarios)} ({scenario_checks} stepwise checks) · "
@@ -207,10 +228,78 @@ def render_markdown(results: SimResults) -> str:
     else:
         lines.append(f"FAIL — {results.determinism.detail}.")
 
+    lines += _forecast_section(results)
+
     failure_lines = _failure_detail(results)
     if failure_lines:
         lines += ["", "## Failures (repro detail)", ""] + failure_lines
     return "\n".join(lines) + "\n"
+
+
+def _forecast_section(results: SimResults) -> list[str]:
+    """The Sim M4 forecast-under-dynamics section (Category 6, per segment)."""
+    forecast = results.forecast_dynamics
+    if forecast is None:
+        return [
+            "",
+            "## Forecast under dynamics (Sim M4, Category 6)",
+            "",
+            "NOT RUN — no forecast-under-dynamics result was attached to this "
+            "run; its gates are absent, which is itself a failing report.",
+            "",
+        ]
+    lines = [
+        "",
+        "## Forecast under dynamics (Sim M4, Category 6, per-segment)",
+        "",
+        f"The Phase 5 calibrated forecast (canonical frozen table) re-ran on every "
+        f"materialized state of {forecast.facilities} corpus facility traces "
+        f"({forecast.states_assessed} states assessed, "
+        f"{forecast.runtime_seconds:.0f}s). Gates assert structural behavior under "
+        "state change — never accuracy: the synthetic labels are a deterministic "
+        "function of the same protection facts the forecast features read, so "
+        "accuracy under dynamics (AUROC/Brier) would be tautological. This "
+        "validates mechanism behavior under state change, not real-world forecast "
+        "accuracy or event timing.",
+        "",
+        "| Segment | " + " | ".join(FORECAST_PROPERTIES) + " | Result |",
+        "|---|---|---|---|---|---|",
+    ]
+    for segment in SEGMENTS:
+        cells: list[str] = []
+        failed = False
+        for invariant in FORECAST_PROPERTIES:
+            checks = forecast.checks_for(invariant, segment)
+            violations = len(forecast.violations_for(invariant, segment))
+            failed = failed or violations > 0 or checks == 0
+            cells.append(f"{checks} checks / {violations} viol")
+        marker = "FAIL" if failed else "PASS"
+        lines.append(f"| {segment} | " + " | ".join(cells) + f" | {marker} |")
+    observation_cells = ", ".join(
+        f"{segment}: {forecast.observations_for(segment).get('conflict_registrations', 0)} "
+        "conflict registrations, "
+        f"{forecast.observations_for(segment).get('path_loss_confounds', 0)} "
+        "unchanged-path exclusions"
+        for segment in SEGMENTS
+    )
+    lines += [
+        "",
+        f"Observed on unchanged supply paths: {observation_cells}. Exclusions are "
+        "the path-loss confound (the feed asset's own supply edges changed — its "
+        "assessor-level loss behavior is Category 1–4 scope).",
+        "",
+        "Scope: degradation-sign and bounds gates compare adjacent states of the "
+        "seeded timeline on unchanged paths only; repair-restores compares the "
+        "fully repaired state with a fresh intact reference exactly (the frozen, "
+        "drift-pinned calibration table makes equality well-defined); abstention "
+        "identity holds at every state.",
+    ]
+    if results.forecast_determinism is not None:
+        lines.append(
+            f"Category 6 (e) determinism: {results.forecast_determinism.detail} "
+            "(two same-seed passes; folded into the determinism gate above)."
+        )
+    return lines
 
 
 def _failure_detail(results: SimResults) -> list[str]:
@@ -247,4 +336,20 @@ def _failure_detail(results: SimResults) -> list[str]:
         lines.append("")
         lines.append(f"- {results.determinism.detail}")
         lines.append("")
+    if results.forecast_determinism is not None and not results.forecast_determinism.ok:
+        lines.append(f"### forecast-under-dynamics determinism (seed {results.seed})")
+        lines.append("")
+        lines.append(f"- {results.forecast_determinism.detail}")
+        lines.append("")
+    if results.forecast_dynamics is not None:
+        forecast_violations = [
+            violation.render()
+            for trace in results.forecast_dynamics.traces
+            for violation in trace.violations
+        ]
+        if forecast_violations:
+            lines.append(f"### forecast-under-dynamics (seed {results.seed})")
+            lines.append("")
+            lines += [f"- {violation}" for violation in forecast_violations]
+            lines.append("")
     return lines
