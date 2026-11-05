@@ -788,6 +788,28 @@ class DeterminismResult:
 
 
 @dataclass(frozen=True)
+class ForecastDeterminismResult:
+    """Sim M4 (Category 6 (e)): two same-seed passes must produce an
+    identical forecast-across-dynamics trace digest."""
+
+    first_digest: str
+    second_digest: str
+
+    @property
+    def ok(self) -> bool:
+        return self.first_digest == self.second_digest
+
+    @property
+    def detail(self) -> str:
+        if self.ok:
+            return f"identical forecast-trace digest {self.first_digest[:16]}"
+        return (
+            f"forecast digests differ: {self.first_digest[:16]} "
+            f"vs {self.second_digest[:16]}"
+        )
+
+
+@dataclass(frozen=True)
 class GateResult:
     """One named gate and its pass/fail with a human detail line."""
 
@@ -820,9 +842,17 @@ def trace_digest(outcomes: tuple[SimScenarioOutcome, ...], sweep: SweepResult) -
 
 
 def evaluate_sim_gates(
-    outcomes: tuple[SimScenarioOutcome, ...], sweep: SweepResult, determinism: DeterminismResult
+    outcomes: tuple[SimScenarioOutcome, ...],
+    sweep: SweepResult,
+    determinism: DeterminismResult,
+    forecast_determinism: ForecastDeterminismResult | None = None,
 ) -> tuple[GateResult, ...]:
-    """The M1–M3 gates, each with its evidence line."""
+    """The M1–M3 gates, each with its evidence line.
+
+    ``forecast_determinism`` (Sim M4, Category 6 (e)) folds into the
+    determinism row when provided: one determinism gate covering both the
+    M1–M3 assessment trace and the forecast-across-dynamics trace.
+    """
     gates: list[GateResult] = []
 
     passed = sum(1 for outcome in outcomes if outcome.passed)
@@ -844,7 +874,12 @@ def evaluate_sim_gates(
             )
         )
 
-    gates.append(GateResult(name="determinism", passed=determinism.ok, detail=determinism.detail))
+    det_detail = determinism.detail
+    det_passed = determinism.ok
+    if forecast_determinism is not None:
+        det_passed = det_passed and forecast_determinism.ok
+        det_detail += f"; forecast-under-dynamics {forecast_determinism.detail}"
+    gates.append(GateResult(name="determinism", passed=det_passed, detail=det_detail))
 
     what_ifs = tuple(wi for outcome in outcomes for wi in outcome.what_ifs)
     if not what_ifs:

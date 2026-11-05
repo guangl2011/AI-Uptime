@@ -1,7 +1,8 @@
 name: nightly-eval
 
 # Nightly evaluation over the full canonical synthetic corpus, plus the
-# simulation suite and the 1,000-seed invariant sweep. Reports are uploaded as
+# simulation suite, the 1,000-seed invariant sweep, and the Sim M4
+# forecast-under-dynamics seed sweep. Reports are uploaded as
 # workflow artifacts per run (never committed to the repo) so metric drift is
 # reviewable over time. Mirrors the eval + sim gates that run on every PR in
 # ci.yml; this schedule exists for drift history and the plan's seed-count
@@ -55,3 +56,13 @@ jobs:
         with:
           name: invariant-sweep-report-${{ github.run_id }}
           path: eval-results/invariants/
+
+      - name: Run forecast-under-dynamics seed sweep (Sim M4, 100 seeds)
+        run: python -m evals.sim.forecast_dynamics --output-dir eval-results/forecast-dynamics
+
+      - name: Upload forecast-dynamics report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forecast-dynamics-report-${{ github.run_id }}
+          path: eval-results/forecast-dynamics/
